@@ -1,1 +1,3 @@
-# satifiable
+# satisfiable
+
+A SAT solver
