@@ -1,4 +1,8 @@
 # Psuedo code for all of the main functions and data structures
+# We will probably need more heuristic functions, e.g. for conflict-based learning
+
+# Maybe we'll use SymPy
+#import sympy
 
 '''
 function main program
@@ -27,16 +31,14 @@ function SAT solver to find ONE solution
 
     Given a list of variables, each variable is either unassigned, zero, or one 
 
-    DPLL algorithm – decide, reduce or something 
+    DPLL algorithm - decide, reduce or something 
 
     We will want to think of this as a recursive function at first, but because of the Python stack limit, we will probably want to manually implement the recursion with a data stack and a while/for loop instead of literal function-call recursion 
 
     Because with large enough boolean input functions, the call stack could overflow! 
 
-    But we should only worry about this if it happens, and I’m predicting that it could happen 
+    But we should only worry about this if it happens, and I'm predicting that it could happen 
 '''
-
-# We will need heuristic functions, e.g. for conflict-based learning
 
 '''
 function to check for unit clauses for implication 
