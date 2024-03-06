@@ -129,18 +129,25 @@ Example:
   createClause([1,2,4], [3,5]) represents the CNF clause "(x1 + x2 + x3' + x4 + x5')"
 [Izak is responsible for this function.]
 '''
-def createCNFClause(ones: set[int]|list[int], zeros: set[int]|list[int]) -> Clause:
+def make_CNF_clause(ones: set[int]|list[int], zeros: set[int]|list[int]) -> Clause:
+    return Clause(number=0, data=make_CNF_dict(ones, zeros))
+
+
+'''
+Helper function for make_CNF_clause
+[Izak is responsible for this function.]
+'''
+def make_CNF_dict(ones: set[int]|list[int], zeros: set[int]|list[int]) -> dict[int,int]:
     ones = set(ones)
     zeros = set(zeros)
-    for var_i in ones:
-        if var_i in zeros:
-            raise ValueError(f"variable index {var_i} should not be in both the `ones` set and the `zeros` set")
+    if both := set.intersection(ones, zeros):
+        raise ValueError(f"variables {both} should not be in both the `ones` set and the `zeros` set")
     clause = dict()
     for var_i in ones:
         clause[var_i] = 1
     for var_i in zeros:
         clause[var_i] = 0
-    return Clause(number=0, data=clause)
+    return clause
 
 
 '''
@@ -156,7 +163,7 @@ def parse_SOP_string(text: str) -> list[Clause]:
         literals = lit_pattern.findall(term)
         ones = [int(pair[1]) for pair in literals if pair[0]!='~']
         zeros = [int(pair[1]) for pair in literals if pair[0]=='~']
-        newClause = createCNFClause(ones, zeros)
+        newClause = make_CNF_clause(ones, zeros)
         newClause.isCNF = False
         clauses.append(newClause)
     return clauses
@@ -187,7 +194,7 @@ def convert_SOP_to_CNF(productTerms: list[Clause]) -> list[Clause]:
     or_input_vars = range(extra_var_i, extra_var_i + len(productTerms))
     add_or_gcf(CNF, or_input_vars, final_output_var_i)
     # Add the final clause: the fact that the output variable should be 1
-    CNF.append(createCNFClause(ones=[final_output_var_i], zeros=[]))
+    CNF.append(make_CNF_clause(ones=[final_output_var_i], zeros=[]))
     return CNF 
 
 
@@ -217,14 +224,14 @@ def add_and_gcf(toList: list[Clause], term: dict[int, Any], term_out_var_i: int)
             neg.append(x_i) # add xi
         else:
             raise ValueError(f"term variable #{x_i} has invalid value: {val}")
-        toList.append(createCNFClause(ones=pos, zeros=neg))
+        toList.append(make_CNF_clause(ones=pos, zeros=neg))
 
     # Add a single CNF clause for the SUMATION part:
     #    [SUM(over i=1 to n, of ~xi) + z]
     pos = [x_i for x_i, val in term.items() if val == 0] # add ~xi (invert the var's polarity)
     neg = [x_i for x_i, val in term.items() if val == 1] # add ~xi (invert the var's polarity)
     pos.append(term_out_var_i) # add z
-    toList.append(createCNFClause(ones=pos, zeros=neg))
+    toList.append(make_CNF_clause(ones=pos, zeros=neg))
 
 
 '''
@@ -240,12 +247,12 @@ def add_or_gcf(toList: list[Clause], or_input_vars, output_var: int):
     # Add the multiple CNF clauses for the PRODUCT part:
     #    PRODUCT(over i=1 to n, of (~xi + z))
     for x_i in or_input_vars:
-        toList.append(createCNFClause(ones=[output_var], zeros=[x_i]))
+        toList.append(make_CNF_clause(ones=[output_var], zeros=[x_i]))
 
     # Add a single CNF clause for the SUMATION part:
     #    [SUM(over i=1 to n, of xi) + ~z]
     # In this part, we invert each literals' polarity between positive/negative
-    toList.append(createCNFClause(ones=list(or_input_vars), zeros=[output_var]))
+    toList.append(make_CNF_clause(ones=list(or_input_vars), zeros=[output_var]))
 
 
 a = ListOfClauses()
