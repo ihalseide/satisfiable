@@ -148,7 +148,7 @@ Parses a Sum-of-Products boolean function string.
 Returns a list of `Clause`s, but they are product terms, NOT CNF clauses!
 [Izak is responsible for this function.]
 '''
-def parseSOPString(text: str) -> list[Clause]:
+def parse_SOP_string(text: str) -> list[Clause]:
     terms = text.split('+')
     clauses: list[Clause] = []
     lit_pattern = re.compile(' *(~?) *x([0-9]+)')
@@ -163,7 +163,7 @@ def parseSOPString(text: str) -> list[Clause]:
 
 
 '''
-Convert a list of SOP clauses (like from the result of parseSOPString) to a list of CNF clauses.
+Convert a list of SOP clauses (like from the result of parse_SOP_string) to a list of CNF clauses.
 The basic process of inverting it twice, referenced in
 [https://web.archive.org/web/20171226054911/http://mathforum.org/library/drmath/view/51857.html]
 is too slow when selecting the minterms (2^n).
@@ -266,7 +266,7 @@ a.printClauseList()
 
 sop_str = "x1 + x2 + x3"
 print('Parsing SOP input:', sop_str)
-sop = parseSOPString(sop_str)
+sop = parse_SOP_string(sop_str)
 print('Parse result:', str(sop))
 print('Converting to CNF, clauses are:')
 cnf = convert_SOP_to_CNF(sop)
