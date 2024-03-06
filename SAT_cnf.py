@@ -112,7 +112,7 @@ def createCNFClause(ones: set[int]|list[int], zeros: set[int]|list[int]) -> Clau
     zeros = set(zeros)
     for var_i in ones:
         if var_i in zeros:
-            raise ValueError(f"variable index {var_i} should not be in the `ones` set and the `zeros` set")
+            raise ValueError(f"variable index {var_i} should not be in both the `ones` set and the `zeros` set")
     clause = dict()
     for var_i in ones:
         clause[var_i] = 1
