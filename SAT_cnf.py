@@ -152,20 +152,36 @@ def make_CNF_dict(ones: set[int]|list[int], zeros: set[int]|list[int]) -> dict[i
 
 '''
 Parses a Sum-of-Products boolean function string.
-Returns a list of `Clause`s, but they are product terms, NOT CNF clauses!
+The expected string format is:
+- "x"<integer> denotes a variable
+- "~" for logical negation
+- "+" for logical or
+- "." optional for logical and, otherwise logical and is implicit
+Returns: a list of `Clause`s, but they are product terms, NOT CNF clauses!
+NOTE: this function parses pretty greedily and optimistically and may accept and
+    parse strings that are not exactly in the right syntax, such as with double
+    negatives, multiple dots, extra letters, etc.
 [Izak is responsible for this function.]
 '''
 def parse_SOP_string(text: str) -> list[Clause]:
+    if not re.match(r"^([ \r\n.~+x0-9])+$", text, flags=re.IGNORECASE):
+        raise ValueError("text has forbidden characters for SOP form")
+    clauses: list[Clause] = [] 
+    # split apart all of the product terms which are OR'ed together
     terms = text.split('+')
-    clauses: list[Clause] = []
-    lit_pattern = re.compile(' *(~?) *x([0-9]+)')
-    for term in terms: # example: "~x1 x2"
+    # pattern to match one postive or negative literal
+    # - group #1 captures the optional inversion prefix '~'
+    # - group #2 captures the variable subscript number (the i value in "xi")
+    lit_pattern = re.compile('(~?) *x([0-9]+)', flags=re.IGNORECASE)
+    for term in terms:
+        # get all of the literals in this term
         literals = lit_pattern.findall(term)
-        ones = [int(pair[1]) for pair in literals if pair[0]!='~']
-        zeros = [int(pair[1]) for pair in literals if pair[0]=='~']
-        newClause = make_CNF_clause(ones, zeros)
-        newClause.isCNF = False
-        clauses.append(newClause)
+        # group the literals into positive and negative
+        positives = [int(i) for prefix, i in literals if not prefix]
+        negatives = [int(i) for prefix, i in literals if prefix]
+        clause = make_CNF_clause(positives, negatives)
+        clause.isCNF = False # this flag is for debugging/error checking purposes
+        clauses.append(clause)
     return clauses
 
 
