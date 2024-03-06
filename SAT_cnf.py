@@ -1,5 +1,4 @@
 
-
 class Clause:
     """
     Clause Class. Reference https://www.geeksforgeeks.org/python-linked-list/
@@ -98,7 +97,30 @@ class ListOfClauses:
                 tmp.data = newDict
                 tmp = tmp.next
 
+
+'''
+Create a `Clause` given:
+- `ones`: the list of variables (as integers) that are positive literals (e.g. x1)
+- `zeros`: the list of variables (as integers) that are negative literals (e.g. ~x1)
+Example:
+  createClause([1,2,4], [3,5]) represents the CNF clause "(x1 + x2 + x3' + x4 + x5')"
+Izak is responsible for this function.
+'''
+def createCNFClause(ones: list, zeros: list) -> Clause:
+    ones = set(ones)
+    zeros = set(zeros)
+    for var_i in ones:
+        if var_i in zeros:
+            raise ValueError(f"variable index {var_i} should not be in the `ones` set and the `zeros` set")
+    clause = dict()
+    for var_i in ones:
+        clause[var_i] = 1
+    for var_i in zeros:
+        clause[var_i] = 0
+    return Clause(number=0, data=clause)
                 
+
+
 a = ListOfClauses()
 dictOfClauses1 = {"x1": 0,
                  "x2": 1,
