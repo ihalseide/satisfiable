@@ -126,7 +126,7 @@ Create a `Clause` given:
 Note: the created clause will have a `.number` of 0 because I don't know what to put there.
 Example:
   createClause([1,2,4], [3,5]) represents the CNF clause "(x1 + x2 + x3' + x4 + x5')"
-Izak is responsible for this function.
+[Izak is responsible for this function.]
 '''
 def createCNFClause(ones: set[int]|list[int], zeros: set[int]|list[int]) -> Clause:
     ones = set(ones)
@@ -145,6 +145,7 @@ def createCNFClause(ones: set[int]|list[int], zeros: set[int]|list[int]) -> Clau
 '''
 Parses a Sum-of-Products boolean function string.
 Returns a list of `Clause`s, but they are product terms, NOT CNF clauses!
+[Izak is responsible for this function.]
 '''
 def parseSOPString(text: str) -> list[Clause]:
     terms = text.split('+')
