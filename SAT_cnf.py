@@ -1,3 +1,4 @@
+import re
 
 class Clause:
     """
@@ -121,6 +122,28 @@ def createCNFClause(ones: set[int]|list[int], zeros: set[int]|list[int]) -> Clau
     return Clause(number=0, data=clause)
 
 
+'''
+Parses a Sum-of-Products boolean function string.
+Returns a list of `Clause`s, but they are product terms, NOT CNF clauses!'''
+def parseSOPString(text: str) -> list[Clause]:
+    print('\nparsing', text)
+    start: int = str.find('=', text)
+    if start < 0:
+        start = 0
+    body = text[start:]
+    terms = body.split('+')
+    clauses: list[Clause] = []
+    lit_pattern = re.compile(' *(~?) *x([0-9]+)')
+    for term in terms: # example: "~x1 x2"
+        print(f'term: "{term}"')
+        literals = lit_pattern.findall(term)
+        ones = [int(pair[1]) for pair in literals if pair[0]!='~']
+        zeros = [int(pair[1]) for pair in literals if pair[0]=='~']
+        newClause = createCNFClause(ones, zeros)
+        clauses.append(newClause)
+    return clauses
+
+
 a = ListOfClauses()
 dictOfClauses1 = {"x1": 0,
                  "x2": 1,
@@ -138,3 +161,9 @@ a.printClauseList()
 
 assert(createCNFClause([1],[2]))
 print('The `createCNFClause` worked')
+
+
+print(parseSOPString("~x1"))
+print(parseSOPString("~x1 . ~ x4"))
+print(parseSOPString("x1 . x2 + x3"))
+print(parseSOPString("x1 . ~x2 + ~x3.x1"))
