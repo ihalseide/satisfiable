@@ -1,4 +1,5 @@
 import re
+from typing import Any
 
 
 class Clause:
@@ -161,6 +162,93 @@ def parseSOPString(text: str) -> list[Clause]:
     return clauses
 
 
+'''
+Convert a list of SOP clauses (like from the result of parseSOPString) to a list of CNF clauses.
+The basic process of inverting it twice, referenced in
+[https://web.archive.org/web/20171226054911/http://mathforum.org/library/drmath/view/51857.html]
+is too slow when selecting the minterms (2^n).
+So lets use gate consistency functions!
+[Izak is responsible for this function.]
+'''
+def convert_SOP_to_CNF(productTerms: list[Clause]) -> list[Clause]:
+    # Get the last/highest variable index value, xi
+    max_var_i: int = max([max(term.data.keys()) for term in productTerms])
+    extra_var_i = max_var_i + 1
+    final_output_var_i = 1 + max_var_i + len(productTerms)
+    CNF: list[Clause] = []
+    # Add the CNF clauses from the AND terms from the SOP form
+    for i, term in enumerate(productTerms):
+        if term.isCNF:
+            raise ValueError(f"the term \"{term}\" should not be marked as isCNF")
+        and_output_var = extra_var_i + i
+        add_and_gcf(CNF, term.data, and_output_var)
+    # Add the CNF clauses from the single OR gate consistency function.
+    # The inputs to the OR are all of the AND output variables.
+    or_input_vars = range(extra_var_i, extra_var_i + len(productTerms))
+    add_or_gcf(CNF, or_input_vars, final_output_var_i)
+    # Add the final clause: the fact that the output variable should be 1
+    CNF.append(createCNFClause(ones=[final_output_var_i], zeros=[]))
+    return CNF 
+
+
+'''
+Helper function for convert_SOP_to_CNF()
+Given a product term (from SOP form), and it's output variable,
+add all of it's required CNF clauses to the `toList`
+as determined by the AND gate consistency function.
+[Izak is responsible for this function.]
+'''
+def add_and_gcf(toList: list[Clause], term: dict[int, Any], term_out_var_i: int):
+    # Each term is a product (AND gate)
+    # and the consistency function for this creates multiple CNF clauses:
+    # For a single gate z = AND(x1, x2, ... xn):
+    #     [PRODUCT(over i=1 to n, of (xi + ~z))] * [SUM(over i=1 to n, of ~xi) + z]
+
+    # Add the multiple CNF clauses for the PRODUCT part:
+    #    [PRODUCT(over i=1 to n, of xi + ~z)]
+    for var_i, val in term.items():
+        pos = []
+        neg = [term_out_var_i] # ~z
+        if val == 1:
+            # `var_i` is a positive literal in the product term
+            pos.append(var_i)
+        elif val == 0:
+            # `var_i` is a negative literal in the product term
+            neg.append(var_i)
+        else:
+            raise ValueError(f"term variable #{var_i} has invalid value: {val}")
+        toList.append(createCNFClause(ones=pos, zeros=neg))
+
+    # Add a single CNF clause for the SUMATION part:
+    #    [SUM(over i=1 to n, of ~xi) + z]
+    # In this part, we invert each literals' polarity between positive/negative
+    pos = [var_i for var_i, val in term.items() if val == 0] # invert the var's polarity
+    neg = [var_i for var_i, val in term.items() if val == 1] # invert the var's polarity
+    pos.append(term_out_var_i)
+    toList.append(createCNFClause(ones=pos, zeros=neg))
+
+
+'''
+Helper function for convert_SOP_to_CNF()
+Create the consistency function for the OR gate that occurs in SOP form.
+All the input variables are positive, which is why this function is simpler than
+the `addAndTermConsistencyFunction`.
+'''
+def add_or_gcf(toList: list[Clause], or_input_vars, output_var: int):
+    # For and OR gate z = OR(x1, x2, ... xn):
+    #    [PRODUCT(over i=1 to n, of (~xi + z))] * [SUM(over i=1 to n, of xi) + ~z]
+
+    # Add the multiple CNF clauses for the PRODUCT part:
+    #    PRODUCT(over i=1 to n, of (~xi + z))
+    for var_i in or_input_vars:
+        toList.append(createCNFClause(ones=[output_var], zeros=[var_i]))
+
+    # Add a single CNF clause for the SUMATION part:
+    #    [SUM(over i=1 to n, of xi) + ~z]
+    # In this part, we invert each literals' polarity between positive/negative
+    toList.append(createCNFClause(ones=list(or_input_vars), zeros=[output_var]))
+
+
 a = ListOfClauses()
 dictOfClauses1 = {"x1": 0,
                  "x2": 1,
@@ -176,22 +264,12 @@ a.setBoolNone()
 a.doComplement()
 a.printClauseList()
 
-assert(createCNFClause([1],[2]))
-print('The `createCNFClause` worked')
-
-
-# Do some little tests with the parseSOPString() function
-testSOPs = [
-    "x0",
-    " x5",
-    "~x1",
-    "~ x1",
-    "~x1 . ~ x4",
-    "x1 . x2 + x3",
-    "~ x1 ~ x3 + x5",
-    "x1 . ~x2 + ~x3.x1",
-    ]
-for s in testSOPs:
-    terms = [str(t) for t in parseSOPString(s)]
-    result = " + ".join(terms)
-    print(f"parsing \"{s}\"\n--> \"{result}\"")
+sop_str = "x1 + x2 + x3"
+print('Parsing SOP input:', sop_str)
+sop = parseSOPString(sop_str)
+print('Parse result:', str(sop))
+print('Converting to CNF, clauses are:')
+cnf = convert_SOP_to_CNF(sop)
+print(".".join([str(c) for c in cnf]))
+n = max(cnf[-1].data.keys()) # quick and overly specific way to do this
+print(f"The output variable is x{n} and must be set to 1.")
