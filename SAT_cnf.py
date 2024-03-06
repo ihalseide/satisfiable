@@ -102,11 +102,12 @@ class ListOfClauses:
 Create a `Clause` given:
 - `ones`: the list of variables (as integers) that are positive literals (e.g. x1)
 - `zeros`: the list of variables (as integers) that are negative literals (e.g. ~x1)
+Note: the created clause will have a `.number` of 0 because I don't know what to put there.
 Example:
   createClause([1,2,4], [3,5]) represents the CNF clause "(x1 + x2 + x3' + x4 + x5')"
 Izak is responsible for this function.
 '''
-def createCNFClause(ones: list, zeros: list) -> Clause:
+def createCNFClause(ones: set[int]|list[int], zeros: set[int]|list[int]) -> Clause:
     ones = set(ones)
     zeros = set(zeros)
     for var_i in ones:
@@ -118,7 +119,6 @@ def createCNFClause(ones: list, zeros: list) -> Clause:
     for var_i in zeros:
         clause[var_i] = 0
     return Clause(number=0, data=clause)
-                
 
 
 a = ListOfClauses()
@@ -135,3 +135,6 @@ a.append(2, dictOfClauses2)
 a.setBoolNone()
 a.doComplement()
 a.printClauseList()
+
+assert(createCNFClause([1],[2]))
+print('The `createCNFClause` worked')
