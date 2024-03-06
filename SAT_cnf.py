@@ -147,12 +147,7 @@ Parses a Sum-of-Products boolean function string.
 Returns a list of `Clause`s, but they are product terms, NOT CNF clauses!
 '''
 def parseSOPString(text: str) -> list[Clause]:
-    #print('\nparsing', text)
-    start: int = str.find('=', text)
-    if start < 0:
-        start = 0
-    body = text[start:]
-    terms = body.split('+')
+    terms = text.split('+')
     clauses: list[Clause] = []
     lit_pattern = re.compile(' *(~?) *x([0-9]+)')
     for term in terms: # example: "~x1 x2"
