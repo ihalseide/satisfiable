@@ -139,7 +139,7 @@ def createCNFClause(ones: set[int]|list[int], zeros: set[int]|list[int]) -> Clau
         clause[var_i] = 1
     for var_i in zeros:
         clause[var_i] = 0
-    return Clause(number=0, data=clause)
+    return Clause(number=0, data=clause, isCNF=False)
 
 
 '''
