@@ -204,11 +204,11 @@ def convert_SOP_to_CNF(productTerms: list[Clause]) -> list[Clause]:
         if term.isCNF:
             raise ValueError(f"the term \"{term}\" should not be marked as isCNF")
         and_output_var = extra_var_i + i
-        add_and_gcf(CNF, term.data, and_output_var)
+        add_and_GCF(CNF, term.data, and_output_var)
     # Add the CNF clauses from the single OR gate consistency function.
     # The inputs to the OR are all of the AND output variables.
     or_input_vars = range(extra_var_i, extra_var_i + len(productTerms))
-    add_or_gcf(CNF, or_input_vars, final_output_var_i)
+    add_or_GCF(CNF, or_input_vars, final_output_var_i)
     # Add the final clause: the fact that the output variable should be 1
     CNF.append(make_CNF_clause(ones=[final_output_var_i], zeros=[]))
     return CNF 
@@ -216,12 +216,12 @@ def convert_SOP_to_CNF(productTerms: list[Clause]) -> list[Clause]:
 
 '''
 Helper function for convert_SOP_to_CNF()
+GCF stands for Gate Consistency Function.
 Given a product term (from SOP form), and it's output variable,
-add all of it's required CNF clauses to the `toList`
-as determined by the AND gate consistency function.
+add all of it's required CNF clauses to the `toList` as determined by the AND gate consistency function (GCF).
 [Izak is responsible for this function.]
 '''
-def add_and_gcf(toList: list[Clause], term: dict[int, Any], term_out_var_i: int):
+def add_and_GCF(toList: list[Clause], term: dict[int, Any], term_out_var_i: int):
     # Each term is a product (AND gate)
     # and the consistency function for this creates multiple CNF clauses:
     # For a single gate z = AND(x1, x2, ... xn):
@@ -250,13 +250,15 @@ def add_and_gcf(toList: list[Clause], term: dict[int, Any], term_out_var_i: int)
     toList.append(make_CNF_clause(ones=pos, zeros=neg))
 
 
+
 '''
-Helper function for convert_SOP_to_CNF()
+Helper function for convert_SOP_to_CNF().
+GCF stands for Gate Consistency Function.
 Create the consistency function for the OR gate that occurs in SOP form.
-All the input variables are positive, which is why this function is simpler than
-the `addAndTermConsistencyFunction`.
+All the input variables are positive, which is why this function is simpler than `add_and_GCF()`.
+[Izak is responsible for this function.]
 '''
-def add_or_gcf(toList: list[Clause], or_input_vars, output_var: int):
+def add_or_GCF(toList: list[Clause], or_input_vars, output_var: int):
     # For and OR gate z = OR(x1, x2, ... xn):
     #    [PRODUCT(over i=1 to n, of (~xi + z))] * [SUM(over i=1 to n, of xi) + ~z]
 
