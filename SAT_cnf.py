@@ -267,9 +267,9 @@ a.printClauseList()
 sop_str = "x1 + x2 + x3"
 print('Parsing SOP input:', sop_str)
 sop = parse_SOP_string(sop_str)
-print('Parse result:', str(sop))
+print('Parsed result:', str(sop))
 print('Converting to CNF, clauses are:')
 cnf = convert_SOP_to_CNF(sop)
-print(".".join([str(c) for c in cnf]))
+print(".".join([str(c) for c in cnf])) # print clause list
 n = max(cnf[-1].data.keys()) # quick and overly specific way to do this
 print(f"The output variable is x{n} and must be set to 1.")
