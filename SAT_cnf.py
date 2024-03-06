@@ -1,18 +1,38 @@
 import re
 
+
 class Clause:
     """
     Clause Class. Reference https://www.geeksforgeeks.org/python-linked-list/
     """
-    def __init__(self, number, data):
+    def __init__(self, number, data: dict, isCNF=True):
         #Assign number to the clause
         self.number = number
  
         #Assign data to clause. Should be the CNF clause. Possibly dictionary?
-        self.data = data
+        self.data: dict = data
        
         #Initalize next as null
-        self.next = None
+        self.next: Clause|None = None
+
+        self.isCNF: bool = isCNF
+
+    '''
+    Writes the clause in a mathematical way
+    '''
+    def __str__(self) -> str:
+        pairs: list[tuple] = [] # pairs of: (var_i, value)
+        for var_i in sorted(self.data.keys()):
+            val = self.data[var_i]
+            pairs.append((var_i, val))
+        vars: list[str] = [f"x{i}" if v else f"~x{i}" for i, v in pairs]
+        if self.isCNF:
+            return "(" + " + ".join(vars) + ")"
+        else:
+            return " . ".join(vars)
+
+    def __repr__(self) -> str:
+        return str(self)
  
 class ListOfClauses:
     """
