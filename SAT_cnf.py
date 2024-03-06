@@ -144,9 +144,10 @@ def createCNFClause(ones: set[int]|list[int], zeros: set[int]|list[int]) -> Clau
 
 '''
 Parses a Sum-of-Products boolean function string.
-Returns a list of `Clause`s, but they are product terms, NOT CNF clauses!'''
+Returns a list of `Clause`s, but they are product terms, NOT CNF clauses!
+'''
 def parseSOPString(text: str) -> list[Clause]:
-    print('\nparsing', text)
+    #print('\nparsing', text)
     start: int = str.find('=', text)
     if start < 0:
         start = 0
@@ -155,7 +156,6 @@ def parseSOPString(text: str) -> list[Clause]:
     clauses: list[Clause] = []
     lit_pattern = re.compile(' *(~?) *x([0-9]+)')
     for term in terms: # example: "~x1 x2"
-        print(f'term: "{term}"')
         literals = lit_pattern.findall(term)
         ones = [int(pair[1]) for pair in literals if pair[0]!='~']
         zeros = [int(pair[1]) for pair in literals if pair[0]=='~']
@@ -183,7 +183,18 @@ assert(createCNFClause([1],[2]))
 print('The `createCNFClause` worked')
 
 
-print(parseSOPString("~x1"))
-print(parseSOPString("~x1 . ~ x4"))
-print(parseSOPString("x1 . x2 + x3"))
-print(parseSOPString("x1 . ~x2 + ~x3.x1"))
+# Do some little tests with the parseSOPString() function
+testSOPs = [
+    "x0",
+    " x5",
+    "~x1",
+    "~ x1",
+    "~x1 . ~ x4",
+    "x1 . x2 + x3",
+    "~ x1 ~ x3 + x5",
+    "x1 . ~x2 + ~x3.x1",
+    ]
+for s in testSOPs:
+    terms = [str(t) for t in parseSOPString(s)]
+    result = " + ".join(terms)
+    print(f"parsing \"{s}\"\n--> \"{result}\"")
