@@ -206,25 +206,24 @@ def add_and_gcf(toList: list[Clause], term: dict[int, Any], term_out_var_i: int)
 
     # Add the multiple CNF clauses for the PRODUCT part:
     #    [PRODUCT(over i=1 to n, of xi + ~z)]
-    for var_i, val in term.items():
+    for x_i, val in term.items():
         pos = []
-        neg = [term_out_var_i] # ~z
+        neg = [term_out_var_i] # add ~z
         if val == 1:
             # `var_i` is a positive literal in the product term
-            pos.append(var_i)
+            pos.append(x_i) # add xi
         elif val == 0:
             # `var_i` is a negative literal in the product term
-            neg.append(var_i)
+            neg.append(x_i) # add xi
         else:
-            raise ValueError(f"term variable #{var_i} has invalid value: {val}")
+            raise ValueError(f"term variable #{x_i} has invalid value: {val}")
         toList.append(createCNFClause(ones=pos, zeros=neg))
 
     # Add a single CNF clause for the SUMATION part:
     #    [SUM(over i=1 to n, of ~xi) + z]
-    # In this part, we invert each literals' polarity between positive/negative
-    pos = [var_i for var_i, val in term.items() if val == 0] # invert the var's polarity
-    neg = [var_i for var_i, val in term.items() if val == 1] # invert the var's polarity
-    pos.append(term_out_var_i)
+    pos = [x_i for x_i, val in term.items() if val == 0] # add ~xi (invert the var's polarity)
+    neg = [x_i for x_i, val in term.items() if val == 1] # add ~xi (invert the var's polarity)
+    pos.append(term_out_var_i) # add z
     toList.append(createCNFClause(ones=pos, zeros=neg))
 
 
@@ -240,8 +239,8 @@ def add_or_gcf(toList: list[Clause], or_input_vars, output_var: int):
 
     # Add the multiple CNF clauses for the PRODUCT part:
     #    PRODUCT(over i=1 to n, of (~xi + z))
-    for var_i in or_input_vars:
-        toList.append(createCNFClause(ones=[output_var], zeros=[var_i]))
+    for x_i in or_input_vars:
+        toList.append(createCNFClause(ones=[output_var], zeros=[x_i]))
 
     # Add a single CNF clause for the SUMATION part:
     #    [SUM(over i=1 to n, of xi) + ~z]
