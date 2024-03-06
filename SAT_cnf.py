@@ -139,7 +139,7 @@ def createCNFClause(ones: set[int]|list[int], zeros: set[int]|list[int]) -> Clau
         clause[var_i] = 1
     for var_i in zeros:
         clause[var_i] = 0
-    return Clause(number=0, data=clause, isCNF=False)
+    return Clause(number=0, data=clause)
 
 
 '''
@@ -160,6 +160,7 @@ def parseSOPString(text: str) -> list[Clause]:
         ones = [int(pair[1]) for pair in literals if pair[0]!='~']
         zeros = [int(pair[1]) for pair in literals if pair[0]=='~']
         newClause = createCNFClause(ones, zeros)
+        newClause.isCNF = False
         clauses.append(newClause)
     return clauses
 
