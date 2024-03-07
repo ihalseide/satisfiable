@@ -6,7 +6,7 @@ class Clause:
     '''
     Clause class, which represents a clause in (CNF) Conjunctive Normal Form.
     '''
-    def __init__(self, number, data: dict, isCNF=True):
+    def __init__(self, number, data: dict[int, Any]):
         #Assign number to the clause
         self.number = number
  
@@ -15,32 +15,32 @@ class Clause:
         # For example, a variable index of `1` means the boolean function input variable "x1"
         self.data: dict[int,Any] = data
 
-        # Set to confirm if clause is in CNF form
-        # (Value is used to make sure this clause is not meant to be in SOP form)
-        # (Value is also used for creating the str() repr() results)
-        self.isCNF: bool = isCNF
-
         # Set to confirm if clause is SAT
         self.isSAT: bool = False
 
         self.isUnitClause = False
 
-    '''
-    Writes the clause in a mathematical way.
-    Uses the `isCNF` field to affect how it is displayed (as a sum or as a product).
-    '''
-    def __str__(self) -> str:
-        pairs: list[tuple] = [] # pairs of: (var_i, value)
-        for var_i in sorted(self.data.keys()):
-            val = self.data[var_i]
-            pairs.append((var_i, val))
-        vars: list[str] = [f"x{i}" if v else f"~x{i}" for i, v in pairs]
-        if self.isCNF:
-            return "(" + " + ".join(vars) + ")"
-        else:
-            return " . ".join(vars)
+    def sortedVars(self):
+        '''
+        Get all of the variable indices and values, sorted by increasing variable index.
+        Example: [(1,0),(2,0),(3,1)] is the output for a clause like "(x3 + ~x1 + ~x2)"
+        '''
+        return sorted(self.data.items())
+
+    def __str__(self, isCNF:bool=True) -> str:
+        '''
+        Get a readable string version of this clause.
+        This method gets called automatically by str().
+        '''
+        vars: list[str] = [f"x{i}" if (v == 1) else f"~x{i}" for i, v in self.sortedVars()]
+        sep: str = " + " if isCNF else " . "
+        return f"({sep.join(vars)})"
 
     def __repr__(self) -> str:
+        '''
+        String representation for a clause, just use the same readable version.
+        This method is called automatically by repr() and str().
+        '''
         return str(self)
 
 
@@ -74,7 +74,7 @@ def make_CNF_dict(ones: set[int]|list[int], zeros: set[int]|list[int]) -> dict[i
     return clause
 
 
-def parse_SOP_string(text: str) -> list[Clause]:
+def parse_SOP_string(text: str) -> list[Clause]: # not CNF clauses!
     '''
     Parses a Sum-of-Products boolean function string.
 
@@ -109,7 +109,6 @@ def parse_SOP_string(text: str) -> list[Clause]:
         positives = [int(i) for prefix, i in literals if not prefix]
         negatives = [int(i) for prefix, i in literals if prefix]
         clause = make_CNF_clause(positives, negatives)
-        clause.isCNF = False # this flag is for debugging/error checking purposes
         clauses.append(clause)
     return clauses
 
@@ -129,8 +128,6 @@ def convert_SOP_to_CNF(productTerms: list[Clause]) -> list[Clause]:
     CNF: list[Clause] = []
     # Add the CNF clauses from the AND terms from the SOP form
     for i, term in enumerate(productTerms):
-        if term.isCNF:
-            raise ValueError(f"the term \"{term}\" should not be marked as isCNF")
         and_output_var = extra_var_i + i
         add_and_GCF(CNF, term.data, and_output_var)
     # Add the CNF clauses from the single OR gate consistency function.
