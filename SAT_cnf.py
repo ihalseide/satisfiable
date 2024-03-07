@@ -4,16 +4,21 @@ from typing import Any
 
 class Clause:
     '''
-    Clause Class. Reference https://www.geeksforgeeks.org/python-linked-list/
+    Clause class, which represents a clause in (CNF) Conjunctive Normal Form.
+    The `isCNF` member is just for book-keeping and isn't strictly necessary.
     '''
     def __init__(self, number, data: dict, isCNF=True):
         #Assign number to the clause
         self.number = number
  
-        #Assign data to clause. Should be the CNF clause. Possibly dictionary?
-        self.data: dict = data
+        # Assign data to clause. Should be the CNF clause
+        # Maps variable index -> value.
+        # For example, a variable index of `1` means the boolean function input variable "x1"
+        self.data: dict[int,Any] = data
 
         # Set to confirm if clause is in CNF form
+        # (Value is used to make sure this clause is not meant to be in SOP form)
+        # (Value is also used for creating the str() repr() results)
         self.isCNF: bool = isCNF
 
         # Set to confirm if clause is SAT
@@ -22,7 +27,8 @@ class Clause:
         self.isUnitClause = False
 
     '''
-    Writes the clause in a mathematical way
+    Writes the clause in a mathematical way.
+    Uses the `isCNF` field to affect how it is displayed (as a sum or as a product).
     '''
     def __str__(self) -> str:
         pairs: list[tuple] = [] # pairs of: (var_i, value)
@@ -37,6 +43,7 @@ class Clause:
 
     def __repr__(self) -> str:
         return str(self)
+
 
 def make_CNF_clause(ones: set[int]|list[int], zeros: set[int]|list[int]) -> Clause:
     '''
