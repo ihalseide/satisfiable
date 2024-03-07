@@ -5,7 +5,6 @@ from typing import Any
 class Clause:
     '''
     Clause class, which represents a clause in (CNF) Conjunctive Normal Form.
-    The `isCNF` member is just for book-keeping and isn't strictly necessary.
     '''
     def __init__(self, number, data: dict, isCNF=True):
         #Assign number to the clause
@@ -78,15 +77,20 @@ def make_CNF_dict(ones: set[int]|list[int], zeros: set[int]|list[int]) -> dict[i
 def parse_SOP_string(text: str) -> list[Clause]:
     '''
     Parses a Sum-of-Products boolean function string.
+
     The expected string format is:
     - "x"<integer> denotes a variable
     - "~" for logical negation
     - "+" for logical or
     - "." optional for logical and, otherwise logical and is implicit
-    Returns: a list of `Clause`s, but they are product terms, NOT CNF clauses!
+
+    Return value: a list of `Clause`s, BUT they are NOT CNF clauses!!!
+        They are product terms (DNF clauses).
+
     NOTE: this function parses pretty greedily and optimistically and may accept and
         parse strings that are not exactly in the right syntax, such as with double
         negatives, multiple dots, extra letters, etc.
+
     [Izak is responsible for this function.]
     '''
     if not re.match(r"^([ \r\n.~+x0-9])+$", text, flags=re.IGNORECASE):
@@ -113,10 +117,9 @@ def parse_SOP_string(text: str) -> list[Clause]:
 def convert_SOP_to_CNF(productTerms: list[Clause]) -> list[Clause]:
     '''
     Convert a list of SOP clauses (like from the result of parse_SOP_string) to a list of CNF clauses.
-    The basic process of inverting it twice, referenced in
-    [https://web.archive.org/web/20171226054911/http://mathforum.org/library/drmath/view/51857.html]
-    is too slow when selecting the minterms (2^n).
-    So lets use gate consistency functions!
+
+    Conversion technique: Gate Consistency Functions (GCF).
+
     [Izak is responsible for this function.]
     '''
     # Get the last/highest variable index value, xi
@@ -141,10 +144,12 @@ def convert_SOP_to_CNF(productTerms: list[Clause]) -> list[Clause]:
 
 def add_and_GCF(toList: list[Clause], term: dict[int, Any], term_out_var_i: int):
     '''
-    Helper function for convert_SOP_to_CNF()
-    GCF stands for Gate Consistency Function.
+    Helper function for convert_SOP_to_CNF().
+    (GCF stands for Gate Consistency Function.)
+
     Given a product term (from SOP form), and it's output variable,
     add all of it's required CNF clauses to the `toList` as determined by the AND gate consistency function (GCF).
+
     [Izak is responsible for this function.]
     '''
     # Each term is a product (AND gate)
@@ -178,9 +183,11 @@ def add_and_GCF(toList: list[Clause], term: dict[int, Any], term_out_var_i: int)
 def add_or_GCF(toList: list[Clause], or_input_vars, output_var: int):
     '''
     Helper function for convert_SOP_to_CNF().
-    GCF stands for Gate Consistency Function.
+    (GCF stands for Gate Consistency Function.)
+
     Create the consistency function for the OR gate that occurs in SOP form.
     All the input variables are positive, which is why this function is simpler than `add_and_GCF()`.
+
     [Izak is responsible for this function.]
     '''
     # For and OR gate z = OR(x1, x2, ... xn):
