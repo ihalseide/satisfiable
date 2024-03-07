@@ -2,6 +2,11 @@ import re
 from typing import Any
 
 
+# Two defined values for literals (the polarity)
+POS_LIT = 1 # positive literal, like x1
+NEG_LIT = 0 # negative literal, like ~x1
+
+
 class Clause:
     '''
     Clause class, which represents a clause in (CNF) Conjunctive Normal Form.
@@ -44,34 +49,45 @@ class Clause:
         return str(self)
 
 
-def make_CNF_clause(ones: set[int]|list[int], zeros: set[int]|list[int]) -> Clause:
+def make_CNF_clause(ones: set[int]|list[int], zeros: set[int]|list[int], number=0) -> Clause:
     '''
-    Create a `Clause` given:
-    - `ones`: the list of variables (as integers) that are positive literals (e.g. x1)
-    - `zeros`: the list of variables (as integers) that are negative literals (e.g. ~x1)
-    Note: the created clause will have a `.number` of 0 because I don't know what to put there.
-    Example:
-    createClause([1,2,4], [3,5]) represents the CNF clause "(x1 + x2 + x3' + x4 + x5')"
+    Create a Clause given:
+    - `ones`: the list/set of variables (as ints) that are POSITIVE literals (e.g. x1)
+    - `zeros`: the list/set of variables (as ints) that are NEGATIVE literals (e.g. ~x1)
+    - `number`: optional clause number/id
+
+    Examples:
+    - createClause([1,2,4], [3,5]) represents the CNF clause: "(x1 + x2 + ~x3 + x4 + ~x5)"
+    - createClause([3,2], []) represents the CNF clause: "(x3 + x2)"
+    - createClause([], [6]) represents the CNF clause: "(~x6)"
+    - createClause([], []) represents an (empty) CNF clause: "()"
+
     [Izak is responsible for this function.]
     '''
-    return Clause(number=0, data=make_CNF_dict(ones, zeros))
+    return Clause(number=number, data=make_CNF_dict(ones, zeros))
 
 
-def make_CNF_dict(ones: set[int]|list[int], zeros: set[int]|list[int]) -> dict[int,int]:
+def make_CNF_dict(ones: set[int]|list[int], zeros: set[int]|list[int]) -> dict[int, int]:
     '''
-    Helper function for make_CNF_clause
+    Create the data dictionary that maps literal indices to values (postive/negative literal)
+    (Helper function for make_CNF_clause).
+    - `ones`: the list/set of variables (as ints) that are POSITIVE literals (e.g. x1)
+    - `zeros`: the list/set of variables (as ints) that are NEGATIVE literals (e.g. ~x1)
+    Returns: dictionary, where keys are the literal indices,
+       and where values mark the literal's polarity (positive/negative).
     [Izak is responsible for this function.]
     '''
     ones = set(ones)
     zeros = set(zeros)
-    if both := set.intersection(ones, zeros):
-        raise ValueError(f"variables {both} should not be in both the `ones` set and the `zeros` set")
-    clause = dict()
+    if in_both := set.intersection(ones, zeros):
+        # NOTE: This might not be an error if this function is ever used to create new clauses in the actual SAT-solver algorithm.
+        raise ValueError(f"variables {in_both} should not appear as a positive literal and a negative literal")
+    d = dict()
     for var_i in ones:
-        clause[var_i] = 1
+        d[var_i] = POS_LIT
     for var_i in zeros:
-        clause[var_i] = 0
-    return clause
+        d[var_i] = NEG_LIT
+    return d
 
 
 def parse_SOP_string(text: str) -> list[Clause]: # not CNF clauses!
@@ -93,8 +109,9 @@ def parse_SOP_string(text: str) -> list[Clause]: # not CNF clauses!
 
     [Izak is responsible for this function.]
     '''
+    # Make sure only this subset of characters is in the input string
     if not re.match(r"^([ \r\n.~+x0-9])+$", text, flags=re.IGNORECASE):
-        raise ValueError("text has forbidden characters for SOP form")
+        raise ValueError("text string has forbidden characters for SOP form")
     clauses: list[Clause] = [] 
     # split apart all of the product terms which are OR'ed together
     terms = text.split('+')
@@ -121,9 +138,12 @@ def convert_SOP_to_CNF(productTerms: list[Clause]) -> list[Clause]:
 
     [Izak is responsible for this function.]
     '''
-    # Get the last/highest variable index value, xi
+    # Get the last/highest variable index value, xi:
     max_var_i: int = max([max(term.data.keys()) for term in productTerms])
+    # Use this as the first new variable index that can be introduced:
     extra_var_i = max_var_i + 1
+    # Literal index for the function's final output wire/literal
+    # (Each product term introduces one new literal, its output wire).
     final_output_var_i = 1 + max_var_i + len(productTerms)
     CNF: list[Clause] = []
     # Add the CNF clauses from the AND terms from the SOP form
@@ -134,7 +154,7 @@ def convert_SOP_to_CNF(productTerms: list[Clause]) -> list[Clause]:
     # The inputs to the OR are all of the AND output variables.
     or_input_vars = range(extra_var_i, extra_var_i + len(productTerms))
     add_or_GCF(CNF, or_input_vars, final_output_var_i)
-    # Add the final clause: the fact that the output variable should be 1
+    # Add the final clause: the fact that the output variable should be 1/true
     CNF.append(make_CNF_clause(ones=[final_output_var_i], zeros=[]))
     return CNF 
 
@@ -159,10 +179,10 @@ def add_and_GCF(toList: list[Clause], term: dict[int, Any], term_out_var_i: int)
     for x_i, val in term.items():
         pos = []
         neg = [term_out_var_i] # add ~z
-        if val == 1:
+        if val == POS_LIT:
             # `var_i` is a positive literal in the product term
             pos.append(x_i) # add xi
-        elif val == 0:
+        elif val == NEG_LIT:
             # `var_i` is a negative literal in the product term
             neg.append(x_i) # add xi
         else:
@@ -171,8 +191,8 @@ def add_and_GCF(toList: list[Clause], term: dict[int, Any], term_out_var_i: int)
 
     # Add a single CNF clause for the SUMATION part:
     #    [SUM(over i=1 to n, of ~xi) + z]
-    pos = [x_i for x_i, val in term.items() if val == 0] # add ~xi (invert the var's polarity)
-    neg = [x_i for x_i, val in term.items() if val == 1] # add ~xi (invert the var's polarity)
+    pos = [x_i for x_i, val in term.items() if val == NEG_LIT] # add ~xi (invert the var's polarity)
+    neg = [x_i for x_i, val in term.items() if val == POS_LIT] # add ~xi (invert the var's polarity)
     pos.append(term_out_var_i) # add z
     toList.append(make_CNF_clause(ones=pos, zeros=neg))
 
