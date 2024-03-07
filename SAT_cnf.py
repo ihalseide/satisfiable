@@ -240,7 +240,7 @@ def dpll(clauses: list[Clause]):
     max_term = 0 
     for clause in clauses:
         # Find max terms from list of clauses. Use literal number names for reference
-        terms = re.findall(r'\d+', clause.__repr__())
+        terms = re.findall(r'\d+', repr(clause))
         tmp_max = max(terms)
         if max_term < int(tmp_max):
             max_term = int(tmp_max)
