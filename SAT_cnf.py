@@ -38,24 +38,24 @@ class Clause:
     def __repr__(self) -> str:
         return str(self)
 
-'''
-Create a `Clause` given:
-- `ones`: the list of variables (as integers) that are positive literals (e.g. x1)
-- `zeros`: the list of variables (as integers) that are negative literals (e.g. ~x1)
-Note: the created clause will have a `.number` of 0 because I don't know what to put there.
-Example:
-  createClause([1,2,4], [3,5]) represents the CNF clause "(x1 + x2 + x3' + x4 + x5')"
-[Izak is responsible for this function.]
-'''
 def make_CNF_clause(ones: set[int]|list[int], zeros: set[int]|list[int]) -> Clause:
+    '''
+    Create a `Clause` given:
+    - `ones`: the list of variables (as integers) that are positive literals (e.g. x1)
+    - `zeros`: the list of variables (as integers) that are negative literals (e.g. ~x1)
+    Note: the created clause will have a `.number` of 0 because I don't know what to put there.
+    Example:
+    createClause([1,2,4], [3,5]) represents the CNF clause "(x1 + x2 + x3' + x4 + x5')"
+    [Izak is responsible for this function.]
+    '''
     return Clause(number=0, data=make_CNF_dict(ones, zeros))
 
 
-'''
-Helper function for make_CNF_clause
-[Izak is responsible for this function.]
-'''
 def make_CNF_dict(ones: set[int]|list[int], zeros: set[int]|list[int]) -> dict[int,int]:
+    '''
+    Helper function for make_CNF_clause
+    [Izak is responsible for this function.]
+    '''
     ones = set(ones)
     zeros = set(zeros)
     if both := set.intersection(ones, zeros):
@@ -68,20 +68,20 @@ def make_CNF_dict(ones: set[int]|list[int], zeros: set[int]|list[int]) -> dict[i
     return clause
 
 
-'''
-Parses a Sum-of-Products boolean function string.
-The expected string format is:
-- "x"<integer> denotes a variable
-- "~" for logical negation
-- "+" for logical or
-- "." optional for logical and, otherwise logical and is implicit
-Returns: a list of `Clause`s, but they are product terms, NOT CNF clauses!
-NOTE: this function parses pretty greedily and optimistically and may accept and
-    parse strings that are not exactly in the right syntax, such as with double
-    negatives, multiple dots, extra letters, etc.
-[Izak is responsible for this function.]
-'''
 def parse_SOP_string(text: str) -> list[Clause]:
+    '''
+    Parses a Sum-of-Products boolean function string.
+    The expected string format is:
+    - "x"<integer> denotes a variable
+    - "~" for logical negation
+    - "+" for logical or
+    - "." optional for logical and, otherwise logical and is implicit
+    Returns: a list of `Clause`s, but they are product terms, NOT CNF clauses!
+    NOTE: this function parses pretty greedily and optimistically and may accept and
+        parse strings that are not exactly in the right syntax, such as with double
+        negatives, multiple dots, extra letters, etc.
+    [Izak is responsible for this function.]
+    '''
     if not re.match(r"^([ \r\n.~+x0-9])+$", text, flags=re.IGNORECASE):
         raise ValueError("text has forbidden characters for SOP form")
     clauses: list[Clause] = [] 
@@ -103,15 +103,15 @@ def parse_SOP_string(text: str) -> list[Clause]:
     return clauses
 
 
-'''
-Convert a list of SOP clauses (like from the result of parse_SOP_string) to a list of CNF clauses.
-The basic process of inverting it twice, referenced in
-[https://web.archive.org/web/20171226054911/http://mathforum.org/library/drmath/view/51857.html]
-is too slow when selecting the minterms (2^n).
-So lets use gate consistency functions!
-[Izak is responsible for this function.]
-'''
 def convert_SOP_to_CNF(productTerms: list[Clause]) -> list[Clause]:
+    '''
+    Convert a list of SOP clauses (like from the result of parse_SOP_string) to a list of CNF clauses.
+    The basic process of inverting it twice, referenced in
+    [https://web.archive.org/web/20171226054911/http://mathforum.org/library/drmath/view/51857.html]
+    is too slow when selecting the minterms (2^n).
+    So lets use gate consistency functions!
+    [Izak is responsible for this function.]
+    '''
     # Get the last/highest variable index value, xi
     max_var_i: int = max([max(term.data.keys()) for term in productTerms])
     extra_var_i = max_var_i + 1
@@ -132,14 +132,14 @@ def convert_SOP_to_CNF(productTerms: list[Clause]) -> list[Clause]:
     return CNF 
 
 
-'''
-Helper function for convert_SOP_to_CNF()
-GCF stands for Gate Consistency Function.
-Given a product term (from SOP form), and it's output variable,
-add all of it's required CNF clauses to the `toList` as determined by the AND gate consistency function (GCF).
-[Izak is responsible for this function.]
-'''
 def add_and_GCF(toList: list[Clause], term: dict[int, Any], term_out_var_i: int):
+    '''
+    Helper function for convert_SOP_to_CNF()
+    GCF stands for Gate Consistency Function.
+    Given a product term (from SOP form), and it's output variable,
+    add all of it's required CNF clauses to the `toList` as determined by the AND gate consistency function (GCF).
+    [Izak is responsible for this function.]
+    '''
     # Each term is a product (AND gate)
     # and the consistency function for this creates multiple CNF clauses:
     # For a single gate z = AND(x1, x2, ... xn):
@@ -168,15 +168,14 @@ def add_and_GCF(toList: list[Clause], term: dict[int, Any], term_out_var_i: int)
     toList.append(make_CNF_clause(ones=pos, zeros=neg))
 
 
-
-'''
-Helper function for convert_SOP_to_CNF().
-GCF stands for Gate Consistency Function.
-Create the consistency function for the OR gate that occurs in SOP form.
-All the input variables are positive, which is why this function is simpler than `add_and_GCF()`.
-[Izak is responsible for this function.]
-'''
 def add_or_GCF(toList: list[Clause], or_input_vars, output_var: int):
+    '''
+    Helper function for convert_SOP_to_CNF().
+    GCF stands for Gate Consistency Function.
+    Create the consistency function for the OR gate that occurs in SOP form.
+    All the input variables are positive, which is why this function is simpler than `add_and_GCF()`.
+    [Izak is responsible for this function.]
+    '''
     # For and OR gate z = OR(x1, x2, ... xn):
     #    [PRODUCT(over i=1 to n, of (~xi + z))] * [SUM(over i=1 to n, of xi) + ~z]
 
@@ -189,6 +188,7 @@ def add_or_GCF(toList: list[Clause], or_input_vars, output_var: int):
     #    [SUM(over i=1 to n, of xi) + ~z]
     # In this part, we invert each literals' polarity between positive/negative
     toList.append(make_CNF_clause(ones=list(or_input_vars), zeros=[output_var]))
+
 
 def check_SAT_clause(clause: list[Clause]):
     '''
