@@ -3,9 +3,9 @@ from typing import Any
 
 
 class Clause:
-    """
+    '''
     Clause Class. Reference https://www.geeksforgeeks.org/python-linked-list/
-    """
+    '''
     def __init__(self, number, data: dict, isCNF=True):
         #Assign number to the clause
         self.number = number
@@ -13,14 +13,13 @@ class Clause:
         #Assign data to clause. Should be the CNF clause. Possibly dictionary?
         self.data: dict = data
 
-        #Initalize next as null
-        self.next: Clause|None = None
-
         # Set to confirm if clause is in CNF form
         self.isCNF: bool = isCNF
 
         # Set to confirm if clause is SAT
         self.isSAT: bool = False
+
+        self.isUnitClause = False
 
     '''
     Writes the clause in a mathematical way
@@ -191,35 +190,76 @@ def add_or_GCF(toList: list[Clause], or_input_vars, output_var: int):
     # In this part, we invert each literals' polarity between positive/negative
     toList.append(make_CNF_clause(ones=list(or_input_vars), zeros=[output_var]))
 
-"""
-Function to check if given list of clause is SAT or UNSAT.
-Takes in a list of Clause objects and traverses through the list. A clause is SAT one literal is 1.
-Function returns True if all clauses are SAT
-If UNSAT, function returns False and a clause list of UNSAT clauses
-"""
-
 def check_SAT_clause(clause: list[Clause]):
-    # Check to see if clauses are SAT
+    '''
+    Function to check if given list of clause is SAT or UNSAT.
+    Takes in a list of Clause objects and traverses through the list. A clause is SAT one literal is 1.
+    Function returns True if all clauses are SAT
+    If UNSAT, function returns False and a clause list of UNSAT clauses
+    '''
+    # Check to see if clauses are SAT. Store UNSAT clauses in list. Not sure if this is needed
     unsat_clauses: list[Clause] = []
     is_function_sat: bool = True
     for clauses in range(len(clause)):
         current_clause = clause[clauses]
+        #Default for .isSAT is false. Not sure if this memeber is needed
         if current_clause.isSAT is not True:
             print(current_clause.data)
             tmp_val = list(current_clause.data.values())
             for i in range(len(tmp_val)):
+                max_val = len(tmp_val) - 1
+                end_of_list_flag = False
                 if tmp_val[i] == 1:
                     current_clause.isSAT = True
                     print(f"Clause {clause[clauses]} is SAT")
+                    end_of_list_flag = True
                     break
-                print(f"Clause {clause[clauses]} is UNSAT")
-                is_function_sat = False
-                unsat_clauses.append(clause[clauses])
-                break
+                if max_val == i and end_of_list_flag == False:
+                    print(f"Clause {clause[clauses]} is UNSAT")
+                    is_function_sat = False
+                    unsat_clauses.append(clause[clauses])
+                    break
+                    
+                
     return is_function_sat, unsat_clauses
 
 
-sop_str = "x1.x3 + ~x1.x9 + x5.x2"
+
+def dpll(clauses: list[Clause]):
+    '''
+    Use DPLL algorithm to find unit clauses and solve
+    '''
+    # Find the max term to make sure to never change value from 1 to 0
+    max_term = 0 
+    for clause in clauses:
+        # Find max terms from list of clauses. Use literal number names for reference
+        terms = re.findall(r'\d+', clause.__repr__())
+        tmp_max = max(terms)
+        if max_term < int(tmp_max):
+            max_term = int(tmp_max)
+    for i in range(len(clauses)):
+        current_clause = clauses[i]
+        if current_clause.isUnitClause is False:
+            unit_clause = current_clause
+            print(unit_clause.data)
+            terms = re.findall(r'\d+', unit_clause.__repr__())
+            for i in terms:
+                # if i == max term, iterate over
+                if int(i) == max_term:
+                    break
+                # Test to see if this assignment works. Pretty much just the complement of the literals.
+                # Need to figure out if the .isSAT member is really needed. Probably not
+                if unit_clause.data[int(i)] == 0:
+                    unit_clause.data[int(i)] = 1
+                    unit_clause.isSAT = False
+                else:
+                    unit_clause.data[int(i)] = 0
+                    unit_clause.isSAT = False
+                print(unit_clause.data)
+        
+    
+
+sop_str = "x1.x3 + ~x1.x2"
 print('Parsing SOP input:', sop_str)
 sop = parse_SOP_string(sop_str)
 print('Parsed result:', str(sop))
@@ -228,7 +268,8 @@ cnf = convert_SOP_to_CNF(sop)
 print(".".join([str(c) for c in cnf])) # print clause list
 n = max(cnf[-1].data.keys()) # quick and overly specific way to do this
 print(f"The output variable is x{n} and must be set to 1.")
-b = None
-a, b = check_SAT_clause(cnf)
 
-print(b)
+check_SAT_clause(cnf)
+dpll(cnf)
+print(cnf)
+check_SAT_clause(cnf)
