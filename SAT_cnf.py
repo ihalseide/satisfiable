@@ -315,6 +315,31 @@ def dpll_rec(clauses:list[Clause], assignments:dict) -> dict[int,Any]:
     return {} # UNSAT
 
 
+def make_blocking_clause(assignments: dict[int,Any]) -> Clause:
+    '''
+    Create a clause that blocks the solution given by the assignments.
+    Just have to negate the current decided assignments.
+    '''
+    pos = [xi for xi, v in assignments.items() if v == NEG_LIT] # negated
+    neg = [xi for xi, v in assignments.items() if v == POS_LIT] # negated
+    return make_CNF_clause(pos, neg)
+
+
+def find_all_SAT(clauses: list[Clause]) -> list[dict[int,Any]]:
+    '''
+    Find all satisfying assignments for a boolean function in CNF.
+    '''
+    solutions: list[dict[int,Any]] = []
+    while (result := dpll(clauses)):
+        # Add the current solution to the list of solutions
+        solutions.append(result)
+        # Add a new clause to the CNF that blocks the current solution
+        # (i.e. add a clause that makes the current solution UNSAT).
+        # This is called "blocking" the solution.
+        clauses.append(make_blocking_clause(result))
+    return solutions
+
+
 def printAssignments(assignments: dict[int,Any]):
     print("\n".join([f"x{i}={v}" for i, v in assignments.items()]))
 
