@@ -2,6 +2,9 @@ import re
 from typing import Any
 import random
 
+# Two defined values for literals (the polarity)
+POS_LIT = 1 # positive literal, like x1
+NEG_LIT = 0 # negative literal, like ~x1
 
 class Clause:
     '''
@@ -63,9 +66,9 @@ def make_CNF_dict(ones: set[int]|list[int], zeros: set[int]|list[int]) -> dict[i
         raise ValueError(f"variables {both} should not be in both the `ones` set and the `zeros` set")
     clause = dict()
     for var_i in ones:
-        clause[var_i] = 1
+        clause[var_i] = POS_LIT
     for var_i in zeros:
-        clause[var_i] = 0
+        clause[var_i] = NEG_LIT
     return clause
 
 
@@ -116,7 +119,7 @@ def convert_SOP_to_CNF(productTerms: list[Clause]) -> list[Clause]:
     # Get the last/highest variable index value, xi
     max_var_i: int = max([max(term.data.keys()) for term in productTerms])
     extra_var_i = max_var_i + 1
-    final_output_var_i = 1 + max_var_i + len(productTerms)
+    final_output_var_i = POS_LIT + max_var_i + len(productTerms)
     CNF: list[Clause] = []
     # Add the CNF clauses from the AND terms from the SOP form
     for i, term in enumerate(productTerms):
@@ -151,10 +154,10 @@ def add_and_GCF(toList: list[Clause], term: dict[int, Any], term_out_var_i: int)
     for x_i, val in term.items():
         pos = []
         neg = [term_out_var_i] # add ~z
-        if val == 1:
+        if val == POS_LIT:
             # `var_i` is a positive literal in the product term
             pos.append(x_i) # add xi
-        elif val == 0:
+        elif val == NEG_LIT:
             # `var_i` is a negative literal in the product term
             neg.append(x_i) # add xi
         else:
@@ -163,8 +166,8 @@ def add_and_GCF(toList: list[Clause], term: dict[int, Any], term_out_var_i: int)
 
     # Add a single CNF clause for the SUMATION part:
     #    [SUM(over i=1 to n, of ~xi) + z]
-    pos = [x_i for x_i, val in term.items() if val == 0] # add ~xi (invert the var's polarity)
-    neg = [x_i for x_i, val in term.items() if val == 1] # add ~xi (invert the var's polarity)
+    pos = [x_i for x_i, val in term.items() if val == NEG_LIT] # add ~xi (invert the var's polarity)
+    neg = [x_i for x_i, val in term.items() if val == POS_LIT] # add ~xi (invert the var's polarity)
     pos.append(term_out_var_i) # add z
     toList.append(make_CNF_clause(ones=pos, zeros=neg))
 
@@ -191,38 +194,31 @@ def add_or_GCF(toList: list[Clause], or_input_vars, output_var: int):
     # In this part, we invert each literals' polarity between positive/negative
     toList.append(make_CNF_clause(ones=list(or_input_vars), zeros=[output_var]))
 
-def check_SAT_clause(clause: list[Clause]):
+def check_SAT_clause(clause: Clause) -> bool:
     '''
-    Function to check if given list of clause is SAT or UNSAT.
-    Takes in a list of Clause objects and traverses through the list. A clause is SAT one literal is 1.
+    Function to check if clause is SAT or UNSAT.
+    Takes in a Clause object. A clause is SAT if at least literal is 1.
     Function returns True if all clauses are SAT
-    If UNSAT, function returns False and a clause list of UNSAT clauses
+    If UNSAT, function returns False
     '''
-    # Check to see if clauses are SAT. Store UNSAT clauses in list. Not sure if this is needed
-    unsat_clauses: list[Clause] = []
-    is_function_sat: bool = True
-    for clauses in range(len(clause)):
-        current_clause = clause[clauses]
-        #Default for .isSAT is false. Not sure if this memeber is needed
-        if current_clause.isSAT is not True:
-            print(current_clause.data)
-            tmp_val = list(current_clause.data.values())
-            for i in range(len(tmp_val)):
-                max_val = len(tmp_val) - 1
-                end_of_list_flag = False
-                if tmp_val[i] == 1:
-                    current_clause.isSAT = True
-                    print(f"Clause {clause[clauses]} is SAT")
-                    end_of_list_flag = True
-                    break
-                if max_val == i and end_of_list_flag == False:
-                    print(f"Clause {clause[clauses]} is UNSAT")
-                    is_function_sat = False
-                    unsat_clauses.append(clause[clauses])
-                    break
-
-
-    return is_function_sat, unsat_clauses
+    is_clause_sat = True
+    #Default for .isSAT is false. Not sure if this memeber is needed
+    if clause.isSAT is not True:
+        print(clause.data)
+        tmp_val = list(clause.data.values())
+        for i in range(len(tmp_val)):
+            max_val = len(tmp_val) - 1
+            end_of_list_flag = False
+            if tmp_val[i] == POS_LIT:
+                clause.isSAT = True
+                print(f"Clause {clause.data[i]} is SAT")
+                end_of_list_flag = True
+                break
+            if max_val == i and end_of_list_flag == False:
+                print(f"Clause {clause.data[i]} is UNSAT")
+                is_function_sat = False
+                break
+    return is_clause_sat
 
 def initialize_dpll(clauses: list[Clause]) -> int:
     '''
@@ -242,18 +238,21 @@ def initialize_dpll(clauses: list[Clause]) -> int:
     return max_term
 
 def is_clause_unit(clauses: Clause) -> bool:
-    #last_index = len(clauses) - 1
-    #max_term = int(''.join(re.findall(r'\d+', clauses[last_index].__repr__())))
-    #for i in range(len(clauses)):
+    '''
+    Function to check if given clause is a Unit Clause.
+    Clause is unit if all literals are false except one. That literal must be unassigned.
+    Return None if output variable is passed in.
+    Return True if clause is unit
+    Return False if clasuse is not unit
+    '''
     num_of_zeros = 0
-    #current_clause = clauses[i]
     terms = re.findall(r'\d+', clauses.__repr__())
     num_of_literals = len(list(clauses.data.values()))
-    #Case for the max term
+    #Case for the max term. Return None
     if num_of_literals == 1:
         return
-    for j in terms:
-        if clauses.data[int(j)] == 0:
+    for i in terms:
+        if clauses.data[int(i)] == NEG_LIT:
             num_of_zeros += 1
     if num_of_literals - 1 == num_of_zeros:
         return True
@@ -265,7 +264,7 @@ def set_variable_in_clause(clauses: Clause, max_val: int):
     test = re.findall(r'\d+', clauses.__repr__())
     print(test)
     # Pick another literal
-    while random_literal == max_val and len(clauses.data.keys()) != 1:
+    while random_literal == max_val and len(clauses.data.keys()) != POS_LIT:
         random_literal = int(random.choice(list(clauses.data.keys())))
     random_val = random.randrange(2)
     clauses.data[random_literal] = random_val # assign 0 or 1. Keep track of this value
@@ -280,7 +279,7 @@ def dpll(clauses: list[Clause]):
     for i in range(len(clauses)):
         test_unit_clause = is_clause_unit(clauses[i])
         while test_unit_clause is False:
-            a, b = set_variable_in_clause(clauses[i], max_term)
+            a = check_SAT_clause(clauses[i])
             break
 
     # Find the max term to make sure to never change value from 1 to 0. The max term will always be the last term. Max term is a literal by itself that must always be 1
@@ -298,11 +297,11 @@ def dpll(clauses: list[Clause]):
     #                 break
     #             # Test to see if this assignment works. Pretty much just the complement of the literals.
     #             # Need to figure out if the .isSAT member is really needed. Probably not
-    #             if unit_clause.data[int(j)] == 0:
-    #                 unit_clause.data[int(j)] = 1
+    #             if unit_clause.data[int(j)] == NEG_LIT:
+    #                 unit_clause.data[int(j)] = POS_LIT
     #                 unit_clause.isSAT = False
     #             else:
-    #                 unit_clause.data[int(j)] = 0
+    #                 unit_clause.data[int(j)] = NEG_LIT
     #                 unit_clause.isSAT = False
     #             print(unit_clause.data)
 
