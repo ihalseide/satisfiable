@@ -2,92 +2,112 @@ import re
 from typing import Any
 import random
 
+
 # Two defined values for literals (the polarity)
 POS_LIT = 1 # positive literal, like x1
 NEG_LIT = 0 # negative literal, like ~x1
 
+
 class Clause:
     '''
-    Clause Class. Reference https://www.geeksforgeeks.org/python-linked-list/
+    Clause class, which represents a clause in (CNF) Conjunctive Normal Form.
     '''
-    def __init__(self, number, data: dict, isCNF=True):
+    def __init__(self, number, data: dict[int, Any]):
         #Assign number to the clause
         self.number = number
 
-        #Assign data to clause. Should be the CNF clause. Possibly dictionary?
-        self.data: dict = data
+        # Assign data to clause. Should be the CNF clause
+        # Maps variable index -> value.
+        # For example, a variable index of `1` means the boolean function input variable "x1"
+        self.data: dict[int,Any] = data
 
-        # Set to confirm if clause is in CNF form
-        self.isCNF: bool = isCNF
+    def sortedVars(self):
+        '''
+        Get all of the variable indices and values, sorted by increasing variable index.
+        Example: [(1,0),(2,0),(3,1)] is the output for a clause like "(x3 + ~x1 + ~x2)"
+        '''
+        return sorted(self.data.items())
 
-        # Set to confirm if clause is SAT
-        self.isSAT: bool = False
-
-        self.isUnitClause = False
-
-    '''
-    Writes the clause in a mathematical way
-    '''
-    def __str__(self) -> str:
-        pairs: list[tuple] = [] # pairs of: (var_i, value)
-        for var_i in sorted(self.data.keys()):
-            val = self.data[var_i]
-            pairs.append((var_i, val))
-        vars: list[str] = [f"x{i}" if v else f"~x{i}" for i, v in pairs]
-        if self.isCNF:
-            return "(" + " + ".join(vars) + ")"
-        else:
-            return " . ".join(vars)
+    def __str__(self, isCNF:bool=True) -> str:
+        '''
+        Get a readable string version of this clause.
+        This method gets called automatically by str().
+        '''
+        vars: list[str] = [f"x{i}" if (v == 1) else f"~x{i}" for i, v in self.sortedVars()]
+        sep: str = " + " if isCNF else " . "
+        return f"({sep.join(vars)})"
 
     def __repr__(self) -> str:
+        '''
+        String representation for a clause, just use the same readable version.
+        This method is called automatically by repr() and str().
+        '''
         return str(self)
 
-'''
-Create a `Clause` given:
-- `ones`: the list of variables (as integers) that are positive literals (e.g. x1)
-- `zeros`: the list of variables (as integers) that are negative literals (e.g. ~x1)
-Note: the created clause will have a `.number` of 0 because I don't know what to put there.
-Example:
-  createClause([1,2,4], [3,5]) represents the CNF clause "(x1 + x2 + x3' + x4 + x5')"
-[Izak is responsible for this function.]
-'''
-def make_CNF_clause(ones: set[int]|list[int], zeros: set[int]|list[int]) -> Clause:
-    return Clause(number=0, data=make_CNF_dict(ones, zeros))
+
+def make_CNF_clause(ones: set[int]|list[int], zeros: set[int]|list[int], number=0) -> Clause:
+    '''
+    Create a Clause given:
+    - `ones`: the list/set of variables (as ints) that are POSITIVE literals (e.g. x1)
+    - `zeros`: the list/set of variables (as ints) that are NEGATIVE literals (e.g. ~x1)
+    - `number`: optional clause number/id
+
+    Examples:
+    - createClause([1,2,4], [3,5]) represents the CNF clause: "(x1 + x2 + ~x3 + x4 + ~x5)"
+    - createClause([3,2], []) represents the CNF clause: "(x3 + x2)"
+    - createClause([], [6]) represents the CNF clause: "(~x6)"
+    - createClause([], []) represents an (empty) CNF clause: "()"
+
+    [Izak is responsible for this function.]
+    '''
+    return Clause(number=number, data=make_CNF_dict(ones, zeros))
 
 
-'''
-Helper function for make_CNF_clause
-[Izak is responsible for this function.]
-'''
-def make_CNF_dict(ones: set[int]|list[int], zeros: set[int]|list[int]) -> dict[int,int]:
+def make_CNF_dict(ones: set[int]|list[int], zeros: set[int]|list[int]) -> dict[int, int]:
+    '''
+    Create the data dictionary that maps literal indices to values (postive/negative literal)
+    (Helper function for make_CNF_clause).
+    - `ones`: the list/set of variables (as ints) that are POSITIVE literals (e.g. x1)
+    - `zeros`: the list/set of variables (as ints) that are NEGATIVE literals (e.g. ~x1)
+    Returns: dictionary, where keys are the literal indices,
+       and where values mark the literal's polarity (positive/negative).
+    [Izak is responsible for this function.]
+    '''
     ones = set(ones)
     zeros = set(zeros)
-    if both := set.intersection(ones, zeros):
-        raise ValueError(f"variables {both} should not be in both the `ones` set and the `zeros` set")
-    clause = dict()
+    if in_both := set.intersection(ones, zeros):
+        # NOTE: This might not be an error if this function is ever used to create new clauses in the actual SAT-solver algorithm.
+        raise ValueError(f"variables {in_both} should not appear as a positive literal and a negative literal")
+    d = dict()
     for var_i in ones:
-        clause[var_i] = 1
+        d[var_i] = POS_LIT
     for var_i in zeros:
-        clause[var_i] = 0
-    return clause
+        d[var_i] = NEG_LIT
+    return d
 
 
-'''
-Parses a Sum-of-Products boolean function string.
-The expected string format is:
-- "x"<integer> denotes a variable
-- "~" for logical negation
-- "+" for logical or
-- "." optional for logical and, otherwise logical and is implicit
-Returns: a list of `Clause`s, but they are product terms, NOT CNF clauses!
-NOTE: this function parses pretty greedily and optimistically and may accept and
-    parse strings that are not exactly in the right syntax, such as with double
-    negatives, multiple dots, extra letters, etc.
-[Izak is responsible for this function.]
-'''
-def parse_SOP_string(text: str) -> list[Clause]:
+def parse_SOP_string(text: str) -> list[Clause]: # not CNF clauses!
+    '''
+    Parses a Sum-of-Products boolean function string.
+
+    The expected string format is:
+    - "x"<integer> denotes a variable
+    - "~" for logical negation
+    - "+" for logical or
+    - "." optional for logical and, otherwise logical and is implicit
+
+    Return value: a list of `Clause`s, BUT they are NOT CNF clauses!!!
+        They are product terms (DNF clauses).
+
+    NOTE: this function parses pretty greedily and optimistically and may accept and
+        parse strings that are not exactly in the right syntax, such as with double
+        negatives, multiple dots, extra letters, etc.
+
+    [Izak is responsible for this function.]
+    '''
+    # Make sure only this subset of characters is in the input string
     if not re.match(r"^([ \r\n.~+x0-9])+$", text, flags=re.IGNORECASE):
-        raise ValueError("text has forbidden characters for SOP form")
+        raise ValueError("text string has forbidden characters for SOP form")
     clauses: list[Clause] = []
     # split apart all of the product terms which are OR'ed together
     terms = text.split('+')
@@ -102,48 +122,53 @@ def parse_SOP_string(text: str) -> list[Clause]:
         positives = [int(i) for prefix, i in literals if not prefix]
         negatives = [int(i) for prefix, i in literals if prefix]
         clause = make_CNF_clause(positives, negatives)
-        clause.isCNF = False # this flag is for debugging/error checking purposes
         clauses.append(clause)
     return clauses
 
 
-'''
-Convert a list of SOP clauses (like from the result of parse_SOP_string) to a list of CNF clauses.
-The basic process of inverting it twice, referenced in
-[https://web.archive.org/web/20171226054911/http://mathforum.org/library/drmath/view/51857.html]
-is too slow when selecting the minterms (2^n).
-So lets use gate consistency functions!
-[Izak is responsible for this function.]
-'''
 def convert_SOP_to_CNF(productTerms: list[Clause]) -> list[Clause]:
-    # Get the last/highest variable index value, xi
-    max_var_i: int = max([max(term.data.keys()) for term in productTerms])
+    '''
+    Convert a list of SOP clauses (like from the result of parse_SOP_string) to a list of CNF clauses.
+
+    Conversion technique: Gate Consistency Functions (GCF).
+
+    Return value: a list of CNF clauses.
+
+    NOTE: the highest literal/variable index in the CNF clauses is the output variable.
+
+    [Izak is responsible for this function.]
+    '''
+    # Get the last/highest variable index value, xi:
+    max_var_i: int = find_maximum_literal(productTerms)
+    # Use this as the first new variable index that can be introduced:
     extra_var_i = max_var_i + 1
+    # Literal index for the function's final output wire/literal
+    # (Each product term introduces one new literal, its output wire).
     final_output_var_i = 1 + max_var_i + len(productTerms)
     CNF: list[Clause] = []
     # Add the CNF clauses from the AND terms from the SOP form
     for i, term in enumerate(productTerms):
-        if term.isCNF:
-            raise ValueError(f"the term \"{term}\" should not be marked as isCNF")
         and_output_var = extra_var_i + i
         add_and_GCF(CNF, term.data, and_output_var)
     # Add the CNF clauses from the single OR gate consistency function.
     # The inputs to the OR are all of the AND output variables.
     or_input_vars = range(extra_var_i, extra_var_i + len(productTerms))
     add_or_GCF(CNF, or_input_vars, final_output_var_i)
-    # Add the final clause: the fact that the output variable should be 1
+    # Add the final clause: the fact that the output variable should be 1/true
     CNF.append(make_CNF_clause(ones=[final_output_var_i], zeros=[]))
     return CNF
 
 
-'''
-Helper function for convert_SOP_to_CNF()
-GCF stands for Gate Consistency Function.
-Given a product term (from SOP form), and it's output variable,
-add all of it's required CNF clauses to the `toList` as determined by the AND gate consistency function (GCF).
-[Izak is responsible for this function.]
-'''
 def add_and_GCF(toList: list[Clause], term: dict[int, Any], term_out_var_i: int):
+    '''
+    Helper function for convert_SOP_to_CNF().
+    (GCF stands for Gate Consistency Function.)
+
+    Given a product term (from SOP form), and it's output variable,
+    add all of it's required CNF clauses to the `toList` as determined by the AND gate consistency function (GCF).
+
+    [Izak is responsible for this function.]
+    '''
     # Each term is a product (AND gate)
     # and the consistency function for this creates multiple CNF clauses:
     # For a single gate z = AND(x1, x2, ... xn):
@@ -154,10 +179,10 @@ def add_and_GCF(toList: list[Clause], term: dict[int, Any], term_out_var_i: int)
     for x_i, val in term.items():
         pos = []
         neg = [term_out_var_i] # add ~z
-        if val == 1:
+        if val == POS_LIT:
             # `var_i` is a positive literal in the product term
             pos.append(x_i) # add xi
-        elif val == 0:
+        elif val == NEG_LIT:
             # `var_i` is a negative literal in the product term
             neg.append(x_i) # add xi
         else:
@@ -166,21 +191,22 @@ def add_and_GCF(toList: list[Clause], term: dict[int, Any], term_out_var_i: int)
 
     # Add a single CNF clause for the SUMATION part:
     #    [SUM(over i=1 to n, of ~xi) + z]
-    pos = [x_i for x_i, val in term.items() if val == 0] # add ~xi (invert the var's polarity)
-    neg = [x_i for x_i, val in term.items() if val == 1] # add ~xi (invert the var's polarity)
+    pos = [x_i for x_i, val in term.items() if val == NEG_LIT] # add ~xi (invert the var's polarity)
+    neg = [x_i for x_i, val in term.items() if val == POS_LIT] # add ~xi (invert the var's polarity)
     pos.append(term_out_var_i) # add z
     toList.append(make_CNF_clause(ones=pos, zeros=neg))
 
 
-
-'''
-Helper function for convert_SOP_to_CNF().
-GCF stands for Gate Consistency Function.
-Create the consistency function for the OR gate that occurs in SOP form.
-All the input variables are positive, which is why this function is simpler than `add_and_GCF()`.
-[Izak is responsible for this function.]
-'''
 def add_or_GCF(toList: list[Clause], or_input_vars, output_var: int):
+    '''
+    Helper function for convert_SOP_to_CNF().
+    (GCF stands for Gate Consistency Function.)
+
+    Create the consistency function for the OR gate that occurs in SOP form.
+    All the input variables are positive, which is why this function is simpler than `add_and_GCF()`.
+
+    [Izak is responsible for this function.]
+    '''
     # For and OR gate z = OR(x1, x2, ... xn):
     #    [PRODUCT(over i=1 to n, of (~xi + z))] * [SUM(over i=1 to n, of xi) + ~z]
 
@@ -195,44 +221,50 @@ def add_or_GCF(toList: list[Clause], or_input_vars, output_var: int):
     toList.append(make_CNF_clause(ones=list(or_input_vars), zeros=[output_var]))
 
 
-# placeholder functions::
-# These could both be replaced by a single function that returns different values that represent the clause's state
-def clause_is_UNSAT(clause: Clause, decisions: dict):
+# placeholder function:
+def clause_value_given_assignments(clause: Clause, assignments: dict):
     '''
-    Function to determine if clause is UNSAT.
-    Return True if function is UNSAT
-    Return False if function is SAT
+    Function to determine if clause is UNSAT or UNDECIDED.
+    A clause is UNSAT if all literals evaluate to false
+    A clause is UNDECIDED is at least ONE literal is unassigned (This includes Unit Clauses)
+    Return UNSAT if clause is UNSAT
+    Return UNDECIDED if clause is UNDECIDED
     '''
     # Get the list of literals from the given clause
     list_of_literals = list(clause.data.keys())
-    
-    # Get a list of dictionary keys passed in. This will correspond to the list of literals
-    decision_keys = list(decisions.keys()) 
-    
+
     # Keep track of number of literals that evaluate to False
     count = 0
 
     # Loop through the lists and compare the literal in the clause
     # with it's corresponding dictionary value
-    for i in range(len(list_of_literals)):
-        current_literal = list_of_literals[i]
-        for j in range(len(decision_keys)):
-            if current_literal == decision_keys[j]:
+    # Returns a dictionary of the literal and it's value within the clause
+    literal_and_assignment: dict = value_of_literal(list_of_literals, assignments)
 
-                # Count number of 0's assigned in the clause
-                # A clause is UNSAT if all literals are false. 
-                if decisions[decision_keys[j]] == NEG_LIT:
-                    count += 1
-    
-    # If the amount of 0's counted in the given clause is equal to the number of 
+    # Count number of 0's assigned in the clause
+    # A clause is UNSAT if all literals are false.
+    for i in range(0, len(literal_and_assignment.keys())):
+        current_literal = list_of_literals[i]
+        if literal_and_assignment[current_literal] == NEG_LIT:
+            count += 1
+        # If any literal in a clause is UNDECIDED, then the clause itself is UNDECIDED
+        elif literal_and_assignment[current_literal] == None:
+            return 'UNDECIDED'
+
+    # If the amount of 0's counted in the given clause is equal to the number of
     # literals in the given clause then we know that all literals are 0.
-    # This means the clause evaluates to False and is UNSAT
+    # This means the clause evaluates to False and is UNSAT.
     if count == len(list_of_literals):
-        return True
-    return False
-            
-    
-def clause_is_undecided(clause, decisions): pass
+        return 'UNSAT'
+
+
+def find_maximum_literal(clauses: list[Clause]) -> int:
+    '''
+    Find the maximum variable index in a list of CNF clauses.
+    This is useful for knowing the upper limit of how many variables there are in a boolean function.
+    Also useful for finding the output variable index.
+    '''
+    return max([max(clause.data.keys()) for clause in clauses])
 
 
 def decide_literal(clauses: list[Clause], decisions: dict) -> int:
@@ -243,70 +275,140 @@ def decide_literal(clauses: list[Clause], decisions: dict) -> int:
     # For now, just choose a random undecided variable.
     return random.choice(undecided)
 
+def value_of_literal(list_of_literal: list[Any], assignments: dict):
+    '''
+    Helper function to get value of current literal
+    Function to return a dictionary of literal and value pairs
+    '''
+
+    tmp = dict()
+    # List the keys of the assignment dictionary. These translate to the literal
+    assignment_keys = list(assignments.keys())
+    assignment_values = list(assignments.values())
+
+    # Loop through the list of literals passed in.
+    # Set the current_literal to the current index of the literal
+    for i in range(0, len(list_of_literal)):
+        current_literal = list_of_literal[i]
+        for j in range(0, len(assignment_keys)):
+            if current_literal == assignment_keys[j]:
+                tmp[current_literal] = assignment_values[j]
+    return tmp
+
+
 
 def all_undecided(clauses:list[Clause]) -> dict[int,Any]:
+    '''
+    Helper function for dpll() to create initial assignments where each variable is undecided.
+    (So each xi is set to None.)
+    '''
     # Initialize the assignments dictionary to have all variables undecided.
     assignments: dict[int, Any] = dict()
-    max_var_i = max([max(clause.data.keys()) for clause in clauses])
+    max_var_i = find_maximum_literal(clauses)
     for i in range(1, max_var_i + 1):
         assignments[i] = None
     return assignments
 
 
-def dpll(clauses:list[Clause]) -> dict[int,Any]|str:
+def dpll(clauses:list[Clause]) -> dict[int,Any]:
     '''
     DPLL algorithm for SAT solving.
-    Takes in a list of CNF clauses and a dictionary of decisions (which may be initially empty).
-    Returns the decisions for literals that make the SAT problem true,
-    or 'UNSAT' if no decisions can make the function SAT.
+    Takes in a list of CNF clauses representing a boolean function.
+    Returns: the assignments for literals that make the SAT problem true, or returns 'UNSAT' if no decisions can make the function SAT.
     '''
-    return dpll_rec(clauses, assignments=all_undecided(clauses))
+    # Start out with all variables undecided.
+    assignments = all_undecided(clauses)
+    # But, assign the output literal/variable to be 1
+    output_var_i = find_maximum_literal(clauses)
+    assignments[output_var_i] = 1
+    return dpll_rec(clauses, assignments)
 
 
-def dpll_rec(clauses:list[Clause], assignments:dict) -> dict[int,Any]|str:
+def dpll_rec(clauses:list[Clause], assignments:dict) -> dict[int,Any]:
     '''
-    Helper function for dpll.
+    The recursive function implementation for dpll().
+    Takes in a list of CNF clauses and a dictionary of decisions.
+    Returns: the assignments for literals that make the SAT problem true,
+    which is an empty dictionary if the function is UNSAT.
     '''
     # Base cases:
     # - if all clauses are SAT, then return the assignments.
     # - if any clause is UNSAT, then return 'UNSAT'.
-    anyUndecided = False
+    anyUndecidedClause: bool = False
     for clause in clauses:
-        # If any clause is UNSAT, then the whole function is UNSAT.
-        if clause_is_UNSAT(clause, assignments):
-            return 'UNSAT'
-        # We only need to check if one clause is undecided to know if any are undecided.
-        if not anyUndecided:
-            # We haven't found any undecided clauses yet.
-            if clause_is_undecided(clause, assignments):
-                anyUndecided = True
-    if not anyUndecided:
-        # All clauses are SAT. So the whole function is SAT!
-        return assignments
+        value = clause_value_given_assignments(clause, assignments)
+        if value == 'UNSAT':
+            # If any clause is UNSAT, then the whole function is UNSAT.
+            return {} # UNSAT
+        elif value == 'UNDECIDED':
+            # We only need to see that one clause is undecided to know if any are undecided.
+            anyUndecidedClause = True
+    if not anyUndecidedClause:
+        # If no clauses are UNSAT and no clauses are undecided,
+        # then all clauses are SAT and the whole function is SAT!
+        return assignments # SAT
 
     # At this point, the clauses are undecided.
     # Choose a literal to try to assign to 1 or to 0...
     # And try those options out by branching recursively.
-    xi = decide_literal(clauses, assignments)
+    xi: int = decide_literal(clauses, assignments)
+    assert(assignments[xi] is None)
     # Try xi=1
     assignments[xi] = 1
-    if (result := dpll_rec(clauses, assignments)) != 'UNSAT':
+    if (result := dpll_rec(clauses, assignments)):
+        # SAT
         return result
     # Try xi=0
     assignments[xi] = 0
-    if (result := dpll_rec(clauses, assignments)) != 'UNSAT':
+    if (result := dpll_rec(clauses, assignments)):
+        # SAT
         return result
     # If both xi=1 and xi=0 failed, then this whole recursive branch is UNSAT.
     # So return UNSAT to the callee (probably the previous recursive call).
     assignments[xi] = None # undo the decision
-    return 'UNSAT'
+    return {} # UNSAT
+
+
+def make_blocking_clause(assignments: dict[int,Any]) -> Clause:
+    '''
+    Create a clause that blocks the solution given by the assignments.
+    Just have to negate the current decided assignments.
+    '''
+    pos = [xi for xi, v in assignments.items() if v == NEG_LIT] # negated
+    neg = [xi for xi, v in assignments.items() if v == POS_LIT] # negated
+    return make_CNF_clause(pos, neg)
+
+
+def find_all_SAT(clauses: list[Clause]) -> list[dict[int,Any]]:
+    '''
+    Find all satisfying assignments for a boolean function in CNF.
+    '''
+    solutions: list[dict[int,Any]] = []
+    while (result := dpll(clauses)):
+        # Add the current solution to the list of solutions
+        solutions.append(result)
+        # Add a new clause to the CNF that blocks the current solution
+        # (i.e. add a clause that makes the current solution UNSAT).
+        # This is called "blocking" the solution.
+        clauses.append(make_blocking_clause(result))
+    return solutions
+
+
+def boolean_functions_are_equivalent(clauses1: list[Clause], clauses2: list[Clause]) -> bool:
+    '''
+    Check if two sets of CNF clauses represent the same boolean function by using SAT solving.
+    Does this by XOR'ing the two sets of clauses and checking if the result is UNSAT.
+    '''
+    # XOR the two sets of clauses together,
+    # Using gate consistency functions for AND and OR to implement (a^b) as (~a.b + a.~b).
+    assert(False) # not implemented yet
 
 
 def printAssignments(assignments: dict[int,Any]):
     print("\n".join([f"x{i}={v}" for i, v in assignments.items()]))
 
 
-sop_str = "x1.x3 + ~x1.x2"
+sop_str = "x1.x3 + ~x1.x2 + ~x3.x4"
 print('Parsing SOP input:', sop_str)
 sop = parse_SOP_string(sop_str)
 print('Parsed result:', str(sop))
@@ -317,7 +419,7 @@ n = max(cnf[-1].data.keys()) # quick and overly specific way to do this
 print(f"The output variable is x{n} and must be set to 1.")
 
 result = dpll(cnf)
-if type(result) == dict:
+if result:
     print("Function is SAT with these assignments:")
     printAssignments(result)
 else:
