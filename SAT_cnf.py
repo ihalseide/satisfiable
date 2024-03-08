@@ -280,7 +280,7 @@ def dpll_rec(clauses:list[Clause], assignments:dict) -> dict[int,Any]:
     # Base cases:
     # - if all clauses are SAT, then return the assignments.
     # - if any clause is UNSAT, then return 'UNSAT'.
-    anyUndecided: bool = False
+    anyUndecidedClause: bool = False
     for clause in clauses:
         value = clause_value_given_assignments(clause, assignments)
         if value == 'UNSAT':
@@ -288,8 +288,8 @@ def dpll_rec(clauses:list[Clause], assignments:dict) -> dict[int,Any]:
             return {} # UNSAT
         elif value == 'UNDECIDED':
             # We only need to see that one clause is undecided to know if any are undecided.
-            anyUndecided = True
-    if not anyUndecided:
+            anyUndecidedClause = True
+    if not anyUndecidedClause:
         # If no clauses are UNSAT and no clauses are undecided,
         # then all clauses are SAT and the whole function is SAT!
         return assignments # SAT
