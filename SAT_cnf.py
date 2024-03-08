@@ -191,121 +191,82 @@ def add_or_GCF(toList: list[Clause], or_input_vars, output_var: int):
     # In this part, we invert each literals' polarity between positive/negative
     toList.append(make_CNF_clause(ones=list(or_input_vars), zeros=[output_var]))
 
-def check_SAT_clause(clause: list[Clause]):
+
+# placeholder functions::
+# These could both be replaced by a single function that returns different values that represent the clause's state
+def clause_is_UNSAT(clause, decisions): pass
+def clause_is_undecided(clause, decisions): pass
+
+
+def decide_literal(clauses: list[Clause], decisions: dict) -> int:
     '''
-    Function to check if given list of clause is SAT or UNSAT.
-    Takes in a list of Clause objects and traverses through the list. A clause is SAT one literal is 1.
-    Function returns True if all clauses are SAT
-    If UNSAT, function returns False and a clause list of UNSAT clauses
+    Choose an unassigned literal to try next.
     '''
-    # Check to see if clauses are SAT. Store UNSAT clauses in list. Not sure if this is needed
-    unsat_clauses: list[Clause] = []
-    is_function_sat: bool = True
-    for clauses in range(len(clause)):
-        current_clause = clause[clauses]
-        #Default for .isSAT is false. Not sure if this memeber is needed
-        if current_clause.isSAT is not True:
-            print(current_clause.data)
-            tmp_val = list(current_clause.data.values())
-            for i in range(len(tmp_val)):
-                max_val = len(tmp_val) - 1
-                end_of_list_flag = False
-                if tmp_val[i] == 1:
-                    current_clause.isSAT = True
-                    print(f"Clause {clause[clauses]} is SAT")
-                    end_of_list_flag = True
-                    break
-                if max_val == i and end_of_list_flag == False:
-                    print(f"Clause {clause[clauses]} is UNSAT")
-                    is_function_sat = False
-                    unsat_clauses.append(clause[clauses])
-                    break
+    undecided = [xi for xi, value in decisions.items() if value is None]
+    # For now, just choose a random undecided variable.
+    return random.choice(undecided)
 
 
-    return is_function_sat, unsat_clauses
+def all_undecided(clauses:list[Clause]) -> dict[int,Any]:
+    # Initialize the assignments dictionary to have all variables undecided.
+    assignments: dict[int, Any] = dict()
+    max_var_i = max([max(clause.data.keys()) for clause in clauses])
+    for i in range(1, max_var_i + 1):
+        assignments[i] = None
+    return assignments
 
-def initialize_dpll(clauses: list[Clause]) -> int:
+
+def dpll(clauses:list[Clause]) -> dict[int,Any]|str:
     '''
-    Function to set all literals to X for beginning the DPLL algorithm. Max term will remain 1.
-    Function will return the max term so we can know to never change it's value
+    DPLL algorithm for SAT solving.
+    Takes in a list of CNF clauses and a dictionary of decisions (which may be initially empty).
+    Returns the decisions for literals that make the SAT problem true,
+    or 'UNSAT' if no decisions can make the function SAT.
     '''
-    last_index = len(clauses) - 1
-    max_term = int(''.join(re.findall(r'\d+', clauses[last_index].__repr__())))
-    for i in range(len(clauses)):
-        current_clause = clauses[i]
-        terms = re.findall(r'\d+', current_clause.__repr__())
-        for j in terms:
-            if int(j) == max_term:
-                break
-            current_clause.data[int(j)] = 'X'
-        print(list(current_clause.data.values()))
-    return max_term
-
-def is_clause_unit(clauses: Clause) -> bool:
-    #last_index = len(clauses) - 1
-    #max_term = int(''.join(re.findall(r'\d+', clauses[last_index].__repr__())))
-    #for i in range(len(clauses)):
-    num_of_zeros = 0
-    #current_clause = clauses[i]
-    terms = re.findall(r'\d+', clauses.__repr__())
-    num_of_literals = len(list(clauses.data.values()))
-    #Case for the max term
-    if num_of_literals == 1:
-        return
-    for j in terms:
-        if clauses.data[int(j)] == 0:
-            num_of_zeros += 1
-    if num_of_literals - 1 == num_of_zeros:
-        return True
-    return False
+    return dpll_rec(clauses, assignments=all_undecided(clauses))
 
 
-def set_variable_in_clause(clauses: Clause, max_val: int):
-    random_literal = int(random.choice(list(clauses.data.keys())))
-    test = re.findall(r'\d+', clauses.__repr__())
-    print(test)
-    # Pick another literal
-    while random_literal == max_val and len(clauses.data.keys()) != 1:
-        random_literal = int(random.choice(list(clauses.data.keys())))
-    random_val = random.randrange(2)
-    clauses.data[random_literal] = random_val # assign 0 or 1. Keep track of this value
-    return random_literal, random_val
-
-
-def dpll(clauses: list[Clause]):
+def dpll_rec(clauses:list[Clause], assignments:dict) -> dict[int,Any]|str:
     '''
-    Use DPLL algorithm to find unit clauses and solve
+    Helper function for dpll.
     '''
-    max_term = initialize_dpll(clauses)
-    for i in range(len(clauses)):
-        test_unit_clause = is_clause_unit(clauses[i])
-        while test_unit_clause is False:
-            a, b = set_variable_in_clause(clauses[i], max_term)
-            break
+    # Base cases:
+    # - if all clauses are SAT, then return the assignments.
+    # - if any clause is UNSAT, then return 'UNSAT'.
+    anyUndecided = False
+    for clause in clauses:
+        # If any clause is UNSAT, then the whole function is UNSAT.
+        if clause_is_UNSAT(clause, assignments):
+            return 'UNSAT'
+        # We only need to check if one clause is undecided to know if any are undecided.
+        if not anyUndecided:
+            # We haven't found any undecided clauses yet.
+            if clause_is_undecided(clause, assignments):
+                anyUndecided = True
+    if not anyUndecided:
+        # All clauses are SAT. So the whole function is SAT!
+        return assignments
 
-    # Find the max term to make sure to never change value from 1 to 0. The max term will always be the last term. Max term is a literal by itself that must always be 1
-    # last_index = len(clauses) - 1
-    # max_term = int(''.join(re.findall(r'\d+', clauses[last_index].__repr__())))
-    # for i in range(len(clauses)):
-    #     current_clause = clauses[i]
-    #     if current_clause.isUnitClause is False:
-    #         unit_clause = current_clause
-    #         print(unit_clause.data)
-    #         terms = re.findall(r'\d+', unit_clause.__repr__())
-    #         for j in terms:
-    #             # if i == max term, iterate over since max_term_i must be 1 and it's complement must be 0
-    #             if int(j) == max_term:
-    #                 break
-    #             # Test to see if this assignment works. Pretty much just the complement of the literals.
-    #             # Need to figure out if the .isSAT member is really needed. Probably not
-    #             if unit_clause.data[int(j)] == 0:
-    #                 unit_clause.data[int(j)] = 1
-    #                 unit_clause.isSAT = False
-    #             else:
-    #                 unit_clause.data[int(j)] = 0
-    #                 unit_clause.isSAT = False
-    #             print(unit_clause.data)
+    # At this point, the clauses are undecided.
+    # Choose a literal to try to assign to 1 or to 0...
+    # And try those options out by branching recursively.
+    xi = decide_literal(clauses, assignments)
+    # Try xi=1
+    assignments[xi] = 1
+    if (result := dpll_rec(clauses, assignments)) != 'UNSAT':
+        return result
+    # Try xi=0
+    assignments[xi] = 0
+    if (result := dpll_rec(clauses, assignments)) != 'UNSAT':
+        return result
+    # If both xi=1 and xi=0 failed, then this whole recursive branch is UNSAT.
+    # So return UNSAT to the callee (probably the previous recursive call).
+    assignments[xi] = None # undo the decision
+    return 'UNSAT'
 
+
+def printAssignments(assignments: dict[int,Any]):
+    print("\n".join([f"x{i}={v}" for i, v in assignments.items()]))
 
 
 sop_str = "x1.x3 + ~x1.x2"
@@ -318,6 +279,9 @@ print(".".join([str(c) for c in cnf])) # print clause list
 n = max(cnf[-1].data.keys()) # quick and overly specific way to do this
 print(f"The output variable is x{n} and must be set to 1.")
 
-dpll(cnf)
-
-#is_clause_unit(cnf)
+result = dpll(cnf)
+if type(result) == dict:
+    print("Function is SAT with these assignments:")
+    printAssignments(result)
+else:
+    print("Function is UNSAT")
