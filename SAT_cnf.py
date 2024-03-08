@@ -268,7 +268,7 @@ def dpll_rec(clauses:list[Clause], assignments:dict) -> dict[int,Any]|str:
     # Base cases:
     # - if all clauses are SAT, then return the assignments.
     # - if any clause is UNSAT, then return 'UNSAT'.
-    anyUndecided = False
+    anyUndecided: bool = False
     for clause in clauses:
         # If any clause is UNSAT, then the whole function is UNSAT.
         if clause_is_UNSAT(clause, assignments):
@@ -285,7 +285,8 @@ def dpll_rec(clauses:list[Clause], assignments:dict) -> dict[int,Any]|str:
     # At this point, the clauses are undecided.
     # Choose a literal to try to assign to 1 or to 0...
     # And try those options out by branching recursively.
-    xi = decide_literal(clauses, assignments)
+    xi: int = decide_literal(clauses, assignments)
+    assert(assignments[xi] is None)
     # Try xi=1
     assignments[xi] = 1
     if (result := dpll_rec(clauses, assignments)) != 'UNSAT':
