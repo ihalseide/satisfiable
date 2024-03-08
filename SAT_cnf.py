@@ -273,7 +273,7 @@ def dpll_rec(clauses:list[Clause], assignments:dict) -> dict[int,Any]|str:
         # If any clause is UNSAT, then the whole function is UNSAT.
         if clause_is_UNSAT(clause, assignments):
             return 'UNSAT'
-        # We only need to check if one clause is undecided to know if any are undecided.
+        # We only need to find that one clause is undecided to know if any are undecided.
         if not anyUndecided:
             # We haven't found any undecided clauses yet.
             if clause_is_undecided(clause, assignments):
