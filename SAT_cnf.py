@@ -21,11 +21,6 @@ class Clause:
         # For example, a variable index of `1` means the boolean function input variable "x1"
         self.data: dict[int,Any] = data
 
-        # Set to confirm if clause is SAT
-        self.isSAT: bool = False
-
-        self.isUnitClause = False
-
     def sortedVars(self):
         '''
         Get all of the variable indices and values, sorted by increasing variable index.
