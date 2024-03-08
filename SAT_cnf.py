@@ -2,6 +2,9 @@ import re
 from typing import Any
 import random
 
+# Two defined values for literals (the polarity)
+POS_LIT = 1 # positive literal, like x1
+NEG_LIT = 0 # negative literal, like ~x1
 
 class Clause:
     '''
@@ -208,7 +211,7 @@ def clause_is_UNSAT(clause: Clause, decisions: dict):
         current_literal = list_of_literals[i]
         for j in range(len(decision_literals)):
             if current_literal == decision_literals[j]:
-                if decisions[decision_literals[j]] == None:
+                if decisions[decision_literals[j]] == NEG_LIT:
                     count += 1
     if count == num_of_literals:
         return True
