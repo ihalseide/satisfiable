@@ -199,21 +199,35 @@ def add_or_GCF(toList: list[Clause], or_input_vars, output_var: int):
 # These could both be replaced by a single function that returns different values that represent the clause's state
 def clause_is_UNSAT(clause: Clause, decisions: dict):
     '''
-    Function to return if clause is UNSAT.
+    Function to determine if clause is UNSAT.
     Return True if function is UNSAT
     Return False if function is SAT
     '''
-    list_of_literals = list(clause.data)
-    decision_literals = list(decisions.keys())
-    num_of_literals = len(list_of_literals)
+    # Get the list of literals from the given clause
+    list_of_literals = list(clause.data.keys())
+    
+    # Get a list of dictionary keys passed in. This will correspond to the list of literals
+    decision_keys = list(decisions.keys()) 
+    
+    # Keep track of number of literals that evaluate to False
     count = 0
+
+    # Loop through the lists and compare the literal in the clause
+    # with it's corresponding dictionary value
     for i in range(len(list_of_literals)):
         current_literal = list_of_literals[i]
-        for j in range(len(decision_literals)):
-            if current_literal == decision_literals[j]:
-                if decisions[decision_literals[j]] == NEG_LIT:
+        for j in range(len(decision_keys)):
+            if current_literal == decision_keys[j]:
+
+                # Count number of 0's assigned in the clause
+                # A clause is UNSAT if all literals are false. 
+                if decisions[decision_keys[j]] == NEG_LIT:
                     count += 1
-    if count == num_of_literals:
+    
+    # If the amount of 0's counted in the given clause is equal to the number of 
+    # literals in the given clause then we know that all literals are 0.
+    # This means the clause evaluates to False and is UNSAT
+    if count == len(list_of_literals):
         return True
     return False
             
