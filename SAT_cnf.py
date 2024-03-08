@@ -221,10 +221,8 @@ def add_or_GCF(toList: list[Clause], or_input_vars, output_var: int):
     toList.append(make_CNF_clause(ones=list(or_input_vars), zeros=[output_var]))
 
 
-# placeholder functions::
-# These could both be replaced by a single function that returns different values that represent the clause's state
-def clause_is_UNSAT(clause, decisions): pass
-def clause_is_undecided(clause, decisions): pass
+# placeholder function:
+def clause_value_given_assignments(clause, assignments): pass
 
 
 def find_maximum_literal(clauses: list[Clause]) -> int:
@@ -258,7 +256,7 @@ def all_undecided(clauses:list[Clause]) -> dict[int,Any]:
     return assignments
 
 
-def dpll(clauses:list[Clause]) -> dict[int,Any]|str:
+def dpll(clauses:list[Clause]) -> dict[int,Any]:
     '''
     DPLL algorithm for SAT solving.
     Takes in a list of CNF clauses representing a boolean function.
@@ -266,34 +264,35 @@ def dpll(clauses:list[Clause]) -> dict[int,Any]|str:
     '''
     # Start out with all variables undecided.
     assignments = all_undecided(clauses)
-    # But, set the output variable to 1
+    # But, assign the output literal/variable to be 1
     output_var_i = find_maximum_literal(clauses)
     assignments[output_var_i ] = 1
     return dpll_rec(clauses, assignments)
 
 
-def dpll_rec(clauses:list[Clause], assignments:dict) -> dict[int,Any]|str:
+def dpll_rec(clauses:list[Clause], assignments:dict) -> dict[int,Any]:
     '''
     The recursive function implementation for dpll().
     Takes in a list of CNF clauses and a dictionary of decisions.
-    Returns: the assignments for literals that make the SAT problem true, or returns 'UNSAT' if no decisions can make the function SAT.
+    Returns: the assignments for literals that make the SAT problem true,
+    which is an empty dictionary if the function is UNSAT.
     '''
     # Base cases:
     # - if all clauses are SAT, then return the assignments.
     # - if any clause is UNSAT, then return 'UNSAT'.
     anyUndecided: bool = False
     for clause in clauses:
-        # If any clause is UNSAT, then the whole function is UNSAT.
-        if clause_is_UNSAT(clause, assignments):
-            return 'UNSAT'
-        # We only need to find that one clause is undecided to know if any are undecided.
-        if not anyUndecided:
-            # We haven't found any undecided clauses yet.
-            if clause_is_undecided(clause, assignments):
-                anyUndecided = True
+        value = clause_value_given_assignments(clause, assignments)
+        if value == 'UNSAT':
+            # If any clause is UNSAT, then the whole function is UNSAT.
+            return {} # UNSAT
+        elif value == 'UNDECIDED':
+            # We only need to see that one clause is undecided to know if any are undecided.
+            anyUndecided = True
     if not anyUndecided:
-        # All clauses are SAT. So the whole function is SAT!
-        return assignments
+        # If no clauses are UNSAT and no clauses are undecided,
+        # then all clauses are SAT and the whole function is SAT!
+        return assignments # SAT
 
     # At this point, the clauses are undecided.
     # Choose a literal to try to assign to 1 or to 0...
@@ -302,16 +301,18 @@ def dpll_rec(clauses:list[Clause], assignments:dict) -> dict[int,Any]|str:
     assert(assignments[xi] is None)
     # Try xi=1
     assignments[xi] = 1
-    if (result := dpll_rec(clauses, assignments)) != 'UNSAT':
+    if (result := dpll_rec(clauses, assignments)):
+        # SAT
         return result
     # Try xi=0
     assignments[xi] = 0
-    if (result := dpll_rec(clauses, assignments)) != 'UNSAT':
+    if (result := dpll_rec(clauses, assignments)):
+        # SAT
         return result
     # If both xi=1 and xi=0 failed, then this whole recursive branch is UNSAT.
     # So return UNSAT to the callee (probably the previous recursive call).
     assignments[xi] = None # undo the decision
-    return 'UNSAT'
+    return {} # UNSAT
 
 
 def printAssignments(assignments: dict[int,Any]):
@@ -329,7 +330,7 @@ n = max(cnf[-1].data.keys()) # quick and overly specific way to do this
 print(f"The output variable is x{n} and must be set to 1.")
 
 result = dpll(cnf)
-if type(result) == dict:
+if result:
     print("Function is SAT with these assignments:")
     printAssignments(result)
 else:
