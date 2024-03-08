@@ -238,6 +238,10 @@ def decide_literal(clauses: list[Clause], decisions: dict) -> int:
 
 
 def all_undecided(clauses:list[Clause]) -> dict[int,Any]:
+    '''
+    Helper function for dpll() to create initial assignments where each variable is undecided.
+    (So each xi is set to None.)
+    '''
     # Initialize the assignments dictionary to have all variables undecided.
     assignments: dict[int, Any] = dict()
     max_var_i = max([max(clause.data.keys()) for clause in clauses])
@@ -249,16 +253,17 @@ def all_undecided(clauses:list[Clause]) -> dict[int,Any]:
 def dpll(clauses:list[Clause]) -> dict[int,Any]|str:
     '''
     DPLL algorithm for SAT solving.
-    Takes in a list of CNF clauses and a dictionary of decisions (which may be initially empty).
-    Returns the decisions for literals that make the SAT problem true,
-    or 'UNSAT' if no decisions can make the function SAT.
+    Takes in a list of CNF clauses representing a boolean function.
+    Returns: the assignments for literals that make the SAT problem true, or returns 'UNSAT' if no decisions can make the function SAT.
     '''
     return dpll_rec(clauses, assignments=all_undecided(clauses))
 
 
 def dpll_rec(clauses:list[Clause], assignments:dict) -> dict[int,Any]|str:
     '''
-    Helper function for dpll.
+    The recursive function implementation for dpll().
+    Takes in a list of CNF clauses and a dictionary of decisions.
+    Returns: the assignments for literals that make the SAT problem true, or returns 'UNSAT' if no decisions can make the function SAT.
     '''
     # Base cases:
     # - if all clauses are SAT, then return the assignments.
