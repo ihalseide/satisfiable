@@ -33,7 +33,9 @@ class Clause:
         Get a readable string version of this clause.
         This method gets called automatically by str().
         '''
+        # get list of variable names, where negated variables are prefixed with '~'
         vars: list[str] = [f"x{i}" if (v == 1) else f"~x{i}" for i, v in self.sortedVars()]
+        # join the variable names together with '+' or '.'
         sep: str = " + " if isCNF else " . "
         return f"({sep.join(vars)})"
 
@@ -42,7 +44,7 @@ class Clause:
         String representation for a clause, just use the same readable version.
         This method is called automatically by repr() and str().
         '''
-        return str(self)
+        return self.__str__()
 
 
 def make_CNF_clause(ones: set[int]|list[int], zeros: set[int]|list[int], number=0) -> Clause:
@@ -221,8 +223,9 @@ def add_or_GCF(toList: list[Clause], or_input_vars, output_var: int):
     toList.append(make_CNF_clause(ones=list(or_input_vars), zeros=[output_var]))
 
 
-# placeholder function:
-def clause_value_given_assignments(clause, assignments): pass
+# TODO: implement this function!
+def clause_value_given_assignments(clause:Clause, assignments:dict[int,Any]) -> str:
+    assert(False) # not implemented yet
 
 
 def find_maximum_literal(clauses: list[Clause]) -> int:
@@ -270,6 +273,7 @@ def dpll(clauses:list[Clause]) -> dict[int,Any]:
     return dpll_rec(clauses, assignments)
 
 
+# TODO: make a version of this function that uses a loop & stack instead of recursion!
 def dpll_rec(clauses:list[Clause], assignments:dict) -> dict[int,Any]:
     '''
     The recursive function implementation for dpll().
@@ -278,8 +282,8 @@ def dpll_rec(clauses:list[Clause], assignments:dict) -> dict[int,Any]:
     which is an empty dictionary if the function is UNSAT.
     '''
     # Base cases:
-    # - if all clauses are SAT, then return the assignments.
-    # - if any clause is UNSAT, then return 'UNSAT'.
+    # - if all clauses are SAT, then then the function is SAT.
+    # - if any clause is UNSAT, then the function is UNSAT.
     anyUndecidedClause: bool = False
     for clause in clauses:
         value = clause_value_given_assignments(clause, assignments)
