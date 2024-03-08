@@ -340,6 +340,16 @@ def find_all_SAT(clauses: list[Clause]) -> list[dict[int,Any]]:
     return solutions
 
 
+def boolean_functions_are_equivalent(clauses1: list[Clause], clauses2: list[Clause]) -> bool:
+    '''
+    Check if two sets of CNF clauses represent the same boolean function by using SAT solving.
+    Does this by XOR'ing the two sets of clauses and checking if the result is UNSAT.
+    '''
+    # XOR the two sets of clauses together,
+    # Using gate consistency functions for AND and OR to implement (a^b) as (~a.b + a.~b).
+    assert(False) # not implemented yet
+
+
 def printAssignments(assignments: dict[int,Any]):
     print("\n".join([f"x{i}={v}" for i, v in assignments.items()]))
 
