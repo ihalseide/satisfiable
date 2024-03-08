@@ -1,5 +1,6 @@
 import re
 from typing import Any
+import random
 
 
 class Clause:
@@ -9,7 +10,7 @@ class Clause:
     def __init__(self, number, data: dict, isCNF=True):
         #Assign number to the clause
         self.number = number
- 
+
         #Assign data to clause. Should be the CNF clause. Possibly dictionary?
         self.data: dict = data
 
@@ -84,7 +85,7 @@ NOTE: this function parses pretty greedily and optimistically and may accept and
 def parse_SOP_string(text: str) -> list[Clause]:
     if not re.match(r"^([ \r\n.~+x0-9])+$", text, flags=re.IGNORECASE):
         raise ValueError("text has forbidden characters for SOP form")
-    clauses: list[Clause] = [] 
+    clauses: list[Clause] = []
     # split apart all of the product terms which are OR'ed together
     terms = text.split('+')
     # pattern to match one postive or negative literal
@@ -129,7 +130,7 @@ def convert_SOP_to_CNF(productTerms: list[Clause]) -> list[Clause]:
     add_or_GCF(CNF, or_input_vars, final_output_var_i)
     # Add the final clause: the fact that the output variable should be 1
     CNF.append(make_CNF_clause(ones=[final_output_var_i], zeros=[]))
-    return CNF 
+    return CNF
 
 
 '''
@@ -219,45 +220,93 @@ def check_SAT_clause(clause: list[Clause]):
                     is_function_sat = False
                     unsat_clauses.append(clause[clauses])
                     break
-                    
-                
+
+
     return is_function_sat, unsat_clauses
 
+def initialize_dpll(clauses: list[Clause]) -> int:
+    '''
+    Function to set all literals to X for beginning the DPLL algorithm. Max term will remain 1.
+    Function will return the max term so we can know to never change it's value
+    '''
+    last_index = len(clauses) - 1
+    max_term = int(''.join(re.findall(r'\d+', clauses[last_index].__repr__())))
+    for i in range(len(clauses)):
+        current_clause = clauses[i]
+        terms = re.findall(r'\d+', current_clause.__repr__())
+        for j in terms:
+            if int(j) == max_term:
+                break
+            current_clause.data[int(j)] = 'X'
+        print(list(current_clause.data.values()))
+    return max_term
+
+def is_clause_unit(clauses: Clause) -> bool:
+    #last_index = len(clauses) - 1
+    #max_term = int(''.join(re.findall(r'\d+', clauses[last_index].__repr__())))
+    #for i in range(len(clauses)):
+    num_of_zeros = 0
+    #current_clause = clauses[i]
+    terms = re.findall(r'\d+', clauses.__repr__())
+    num_of_literals = len(list(clauses.data.values()))
+    #Case for the max term
+    if num_of_literals == 1:
+        return
+    for j in terms:
+        if clauses.data[int(j)] == 0:
+            num_of_zeros += 1
+    if num_of_literals - 1 == num_of_zeros:
+        return True
+    return False
+
+
+def set_variable_in_clause(clauses: Clause, max_val: int):
+    random_literal = int(random.choice(list(clauses.data.keys())))
+    test = re.findall(r'\d+', clauses.__repr__())
+    print(test)
+    # Pick another literal
+    while random_literal == max_val and len(clauses.data.keys()) != 1:
+        random_literal = int(random.choice(list(clauses.data.keys())))
+    random_val = random.randrange(2)
+    clauses.data[random_literal] = random_val # assign 0 or 1. Keep track of this value
+    return random_literal, random_val
 
 
 def dpll(clauses: list[Clause]):
     '''
     Use DPLL algorithm to find unit clauses and solve
     '''
-    # Find the max term to make sure to never change value from 1 to 0
-    max_term = 0 
-    for clause in clauses:
-        # Find max terms from list of clauses. Use literal number names for reference
-        terms = re.findall(r'\d+', clause.__repr__())
-        tmp_max = max(terms)
-        if max_term < int(tmp_max):
-            max_term = int(tmp_max)
+    max_term = initialize_dpll(clauses)
     for i in range(len(clauses)):
-        current_clause = clauses[i]
-        if current_clause.isUnitClause is False:
-            unit_clause = current_clause
-            print(unit_clause.data)
-            terms = re.findall(r'\d+', unit_clause.__repr__())
-            for i in terms:
-                # if i == max term, iterate over
-                if int(i) == max_term:
-                    break
-                # Test to see if this assignment works. Pretty much just the complement of the literals.
-                # Need to figure out if the .isSAT member is really needed. Probably not
-                if unit_clause.data[int(i)] == 0:
-                    unit_clause.data[int(i)] = 1
-                    unit_clause.isSAT = False
-                else:
-                    unit_clause.data[int(i)] = 0
-                    unit_clause.isSAT = False
-                print(unit_clause.data)
-        
-    
+        test_unit_clause = is_clause_unit(clauses[i])
+        while test_unit_clause is False:
+            a, b = set_variable_in_clause(clauses[i], max_term)
+            break
+
+    # Find the max term to make sure to never change value from 1 to 0. The max term will always be the last term. Max term is a literal by itself that must always be 1
+    # last_index = len(clauses) - 1
+    # max_term = int(''.join(re.findall(r'\d+', clauses[last_index].__repr__())))
+    # for i in range(len(clauses)):
+    #     current_clause = clauses[i]
+    #     if current_clause.isUnitClause is False:
+    #         unit_clause = current_clause
+    #         print(unit_clause.data)
+    #         terms = re.findall(r'\d+', unit_clause.__repr__())
+    #         for j in terms:
+    #             # if i == max term, iterate over since max_term_i must be 1 and it's complement must be 0
+    #             if int(j) == max_term:
+    #                 break
+    #             # Test to see if this assignment works. Pretty much just the complement of the literals.
+    #             # Need to figure out if the .isSAT member is really needed. Probably not
+    #             if unit_clause.data[int(j)] == 0:
+    #                 unit_clause.data[int(j)] = 1
+    #                 unit_clause.isSAT = False
+    #             else:
+    #                 unit_clause.data[int(j)] = 0
+    #                 unit_clause.isSAT = False
+    #             print(unit_clause.data)
+
+
 
 sop_str = "x1.x3 + ~x1.x2"
 print('Parsing SOP input:', sop_str)
@@ -269,7 +318,6 @@ print(".".join([str(c) for c in cnf])) # print clause list
 n = max(cnf[-1].data.keys()) # quick and overly specific way to do this
 print(f"The output variable is x{n} and must be set to 1.")
 
-check_SAT_clause(cnf)
 dpll(cnf)
-print(cnf)
-check_SAT_clause(cnf)
+
+#is_clause_unit(cnf)
