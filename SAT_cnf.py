@@ -132,10 +132,14 @@ def convert_SOP_to_CNF(productTerms: list[Clause]) -> list[Clause]:
 
     Conversion technique: Gate Consistency Functions (GCF).
 
+    Return value: a list of CNF clauses.
+
+    NOTE: the highest literal/variable index in the CNF clauses is the output variable.
+
     [Izak is responsible for this function.]
     '''
     # Get the last/highest variable index value, xi:
-    max_var_i: int = max([max(term.data.keys()) for term in productTerms])
+    max_var_i: int = find_maximum_literal(productTerms)
     # Use this as the first new variable index that can be introduced:
     extra_var_i = max_var_i + 1
     # Literal index for the function's final output wire/literal
@@ -223,6 +227,15 @@ def clause_is_UNSAT(clause, decisions): pass
 def clause_is_undecided(clause, decisions): pass
 
 
+def find_maximum_literal(clauses: list[Clause]) -> int:
+    '''
+    Find the maximum variable index in a list of CNF clauses.
+    This is useful for knowing the upper limit of how many variables there are in a boolean function.
+    Also useful for finding the output variable index.
+    '''
+    return max([max(clause.data.keys()) for clause in clauses])
+
+
 def decide_literal(clauses: list[Clause], decisions: dict) -> int:
     '''
     Choose an unassigned literal to try next.
@@ -239,7 +252,7 @@ def all_undecided(clauses:list[Clause]) -> dict[int,Any]:
     '''
     # Initialize the assignments dictionary to have all variables undecided.
     assignments: dict[int, Any] = dict()
-    max_var_i = max([max(clause.data.keys()) for clause in clauses])
+    max_var_i = find_maximum_literal(clauses)
     for i in range(1, max_var_i + 1):
         assignments[i] = None
     return assignments
@@ -251,7 +264,12 @@ def dpll(clauses:list[Clause]) -> dict[int,Any]|str:
     Takes in a list of CNF clauses representing a boolean function.
     Returns: the assignments for literals that make the SAT problem true, or returns 'UNSAT' if no decisions can make the function SAT.
     '''
-    return dpll_rec(clauses, assignments=all_undecided(clauses))
+    # Start out with all variables undecided.
+    assignments = all_undecided(clauses)
+    # But, set the output variable to 1
+    output_var_i = find_maximum_literal(clauses)
+    assignments[output_var_i ] = 1
+    return dpll_rec(clauses, assignments)
 
 
 def dpll_rec(clauses:list[Clause], assignments:dict) -> dict[int,Any]|str:
