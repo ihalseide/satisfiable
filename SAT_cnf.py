@@ -406,7 +406,6 @@ def dpll_iterative(clauses: list[Clause]) -> dict[int,Any]:
     '''
     Implementation of DPLL using a loop instead of recursion.
     '''
-    print("\nStarting DPLL with stack... with clauses", clauses)
     assignments1 = all_undecided(clauses)
     assignments2 = assignments1.copy()
     starting_xi = decide_literal(clauses, assignments1)
@@ -419,9 +418,7 @@ def dpll_iterative(clauses: list[Clause]) -> dict[int,Any]:
     stack.append(assignments1)
     stack.append(assignments2)
     while stack:
-        print('stack: ', stack)
         current_assignments = stack.pop()
-        print('trying assignments: ', current_assignments)
         anyUndecidedClause: bool = False
         anUNSATClause: Clause|None = None
         for clause in clauses:
@@ -430,44 +427,41 @@ def dpll_iterative(clauses: list[Clause]) -> dict[int,Any]:
                 # If any clause is UNSAT, then the whole function is UNSAT.
                 anUNSATClause = clause
                 break
-            elif not anyUndecidedClause and value == UNDECIDED:
+            elif (not anyUndecidedClause) and (value == UNDECIDED):
                 # We only need to see that one clause is undecided to know if any are undecided.
-                print('saw an undecided clause')
                 anyUndecidedClause = True
 
         # This should be checked before anyUndecidedClause, because UNSAT takes precedence over UNDECIDED.
         if anUNSATClause is not None:
-            # If any clause is UNSAT, then the whole function is UNSAT for this branch
-            # So continue to next loop iteration, which will pop the stack.
-            print(f'there is an UNSAT clause, {clause}, so stopping this branch')
+            # If any clause is UNSAT, then the whole function is UNSAT for this branch.
+            # So, continue to next loop iteration to try the next branch(es).
             continue
 
         if not anyUndecidedClause:
             # If no clauses are UNSAT and no clauses are undecided,
             # then all clauses are SAT and the whole function is SAT!
-            print('RETURN: all clauses are SAT')
             return current_assignments # SAT
         else:
-            print('> undecided clauses, so choose a variable and push')
+            # At this point, at least one of the clauses is undecided,
+            # So lets add two decisions to the stack to try next...
             xi = decide_literal(clauses, current_assignments)
-            print(f'  (decided to try variable {xi})')
             if not xi:
                 # There are no undecided literals, so we can't make any more decisions.
                 # This means that the function is UNSAT.
-                print('RETURN: UNSAT due to no undecided literals')
-                return {}
+                return {} # UNSAT
             assert(current_assignments[xi] is None)
             # Try xi=1
-            assignments1 = current_assignments.copy()
-            assignments1[xi] = 1
-            stack.append(assignments1)
+            # (We don't need to make a copy of the current_assignments dictionary,
+            #   because it is not used again after this loop iteration.)
+            current_assignments[xi] = 1
+            stack.append(current_assignments)
             # Try xi=0
+            # (Make a copy of the dictionary this time, because we need to make a different decision.)
             assignments2 = current_assignments.copy()
             assignments2[xi] = 0
             stack.append(assignments2)
-    # UNSAT
-    print('RETURN: UNSAT due to no more possible assignments on the stack')
-    return {}
+    # UNSAT due to no more possible assignments on the stack
+    return {} # UNSAT
 
 
 def make_blocking_clause(assignments: dict[int,Any]) -> Clause:
@@ -613,7 +607,6 @@ def test_dpll(dpll_func):
     # Test conflicting clauses (UNSAT)
     clauses = [make_CNF_clause([1], []), make_CNF_clause([], [1])] # (x1).(~x1)
     result = dpll_func(clauses)
-    print(result)
     assert(result == {})
 
     # Test 2 clauses
