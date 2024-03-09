@@ -2,7 +2,6 @@ import re
 from typing import Any
 import random
 import argparse
-from itertools import islice
 
 
 # Two defined values for literals (the polarity)
@@ -252,7 +251,7 @@ def clause_value_given_assignments(clause: Clause, assignments: dict) -> str:
     list_of_literals = list(clause.data.keys())
 
     # Keep track of number of literals that evaluate to False
-    count = 0
+    countFalse = 0
 
     # Loop through the lists and compare the literal in the clause
     # with it's corresponding dictionary value
@@ -261,21 +260,20 @@ def clause_value_given_assignments(clause: Clause, assignments: dict) -> str:
 
     # Count number of 0's assigned in the clause
     # A clause is UNSAT if all literals are false.
-    for i in range(0, len(literal_and_assignment.keys())):
-        current_literal = list_of_literals[i]
+    for lit_i, val in literal_and_assignment.items():
 
         # Count the amount of 0's in a given clause
-        if literal_and_assignment[current_literal] == NEG_LIT:
-            count += 1
+        if val == NEG_LIT:
+            countFalse += 1
         
         # Return 'SAT' if any literal is 1. This means the clause is SAT
-        elif literal_and_assignment[current_literal] == POS_LIT:
+        elif val == POS_LIT:
             return SAT
 
     # If the amount of 0's counted in the given clause is equal to the number of
     # literals in the given clause then we know that all literals are 0.
     # This means the clause evaluates to False and is UNSAT.
-    if count == len(list_of_literals):
+    if countFalse == len(list_of_literals):
         return UNSAT
     
     # If were here then clause must be UNDECIDED since no other condition is met
