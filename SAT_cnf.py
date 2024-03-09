@@ -225,8 +225,11 @@ def add_or_GCF(toList: list[Clause], or_input_vars, output_var: int):
 def clause_value_given_assignments(clause: Clause, assignments: dict):
     '''
     Function to determine if clause is UNSAT or UNDECIDED.
-    A clause is UNSAT if all literals evaluate to false
-    A clause is UNDECIDED is at least ONE literal is unassigned (This includes Unit Clauses)
+    A clause is SAT if at least ONE literal evaluates to True
+    A clause is UNSAT if all literals evaluate to False
+    A clause is UNDECIDED if at least ONE literal is unassigned (This includes Unit Clauses)
+    
+    Return SAT if clause is SAT
     Return UNSAT if clause is UNSAT
     Return UNDECIDED if clause is UNDECIDED
     '''
@@ -235,9 +238,6 @@ def clause_value_given_assignments(clause: Clause, assignments: dict):
 
     # Keep track of number of literals that evaluate to False
     count = 0
-    
-    # Keep track of number of literals that are undecided
-    count_undecided = 0
 
     # Loop through the lists and compare the literal in the clause
     # with it's corresponding dictionary value
@@ -252,10 +252,6 @@ def clause_value_given_assignments(clause: Clause, assignments: dict):
         # Count the amount of 0's in a given clause
         if literal_and_assignment[current_literal] == NEG_LIT:
             count += 1
-
-        # Count the amount of undecided literals in a given clause
-        elif literal_and_assignment[current_literal] == None:
-            count_undecided += 1
         
         # Return 'SAT' if any literal is 1. This means the clause is SAT
         elif literal_and_assignment[current_literal] == POS_LIT:
@@ -267,11 +263,8 @@ def clause_value_given_assignments(clause: Clause, assignments: dict):
     if count == len(list_of_literals):
         return 'UNSAT'
     
-    # If the amount of 'None' counted in the given clause is equal to the number of
-    # literals in the given clause OR is less than the number of literals in the given cause
-    # this means the clause evaluates to 'UNDECIDED'.
-    if count_undecided != 0:
-        return 'UNDECIDED'
+    # If were here then clause must be UNDECIDED since no other condition is met
+    return 'UNDECIDED'
     
 
 
@@ -294,8 +287,9 @@ def decide_literal(clauses: list[Clause], decisions: dict) -> int:
 
 def value_of_literal(clause: Clause, assignments: dict):
     '''
-    Helper function to assign and get literal values of current clause
-    Function will return a dictionary of literal and value pairs
+    Helper function to assign and get literal values of the current clause
+
+    Return a dictionary of literal and value pairs
     '''
     # Dictionary to hold the mapping of the literal to it's value
     literal_and_assignment = dict()
