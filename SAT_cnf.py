@@ -348,11 +348,6 @@ def all_undecided(clauses:list[Clause]) -> dict[int,Any]:
     return assignments
 
 
-# TODO: make a version of this function that uses a loop & stack instead of recursion!
-def dpll(clauses:list[Clause], assignments:dict[int,Any]|None=None) -> dict[int,Any]:
-    return dpll_with_stack(clauses)
-
-
 def dpll_rec(clauses: list[Clause], assignments: dict[int,Any]|None=None) -> dict[int,Any]:
     '''
     The recursive function implementation for dpll().
@@ -393,12 +388,12 @@ def dpll_rec(clauses: list[Clause], assignments: dict[int,Any]|None=None) -> dic
     assert(assignments[xi] is None)
     # Try xi=1
     assignments[xi] = 1
-    if (result := dpll(clauses, assignments)):
+    if (result := dpll_rec(clauses, assignments)):
         # SAT
         return result
     # Try xi=0
     assignments[xi] = 0
-    if (result := dpll(clauses, assignments)):
+    if (result := dpll_rec(clauses, assignments)):
         # SAT
         return result
     # If both xi=1 and xi=0 failed, then this whole recursive branch is UNSAT.
@@ -407,56 +402,71 @@ def dpll_rec(clauses: list[Clause], assignments: dict[int,Any]|None=None) -> dic
     return {} # UNSAT
 
 
-def dpll_with_stack(clauses: list[Clause]):# -> dict[int,Any]:
-    print('Calling dpll_with_stack...')
-    print('clauses are ', clauses)
-    assignments = all_undecided(clauses)
-
-    # Push some initial decisions onto the stack
-    stack = []
-    xi = decide_literal(clauses, assignments)
-    if not xi:
+def dpll_iterative(clauses: list[Clause]) -> dict[int,Any]:
+    '''
+    Implementation of DPLL using a loop instead of recursion.
+    '''
+    print("\nStarting DPLL with stack... with clauses", clauses)
+    assignments1 = all_undecided(clauses)
+    assignments2 = assignments1.copy()
+    starting_xi = decide_literal(clauses, assignments1)
+    if starting_xi is None:
+        # No clauses, so return no assignments
         return {}
-    stack.append(('try', xi, 0))
-    stack.append(('try', xi, 1))
-
+    assignments1[starting_xi] = 1
+    assignments2[starting_xi] = 0
+    stack = []
+    stack.append(assignments1)
+    stack.append(assignments2)
     while stack:
-        print('stack:', stack)
-        (action, xi, value) = stack.pop()
-        print(action, "xi:", xi, "value:", value)
-        assignments[xi] = value
-        if action == "restore":
-            # Undo the value for xi
-            continue
-        stack.append(('restore', xi, assignments[xi]))
+        print('stack: ', stack)
+        current_assignments = stack.pop()
+        print('trying assignments: ', current_assignments)
         anyUndecidedClause: bool = False
+        anUNSATClause: Clause|None = None
         for clause in clauses:
-            value = clause_value(clause, assignments)
+            value = clause_value(clause, current_assignments)
             if value == UNSAT:
                 # If any clause is UNSAT, then the whole function is UNSAT.
-                # This branch is UNSAT, so we should backtrack and try the other value for xi.
-                print('UNSAT branch')
-                continue
-            elif value == UNDECIDED:
+                anUNSATClause = clause
+                break
+            elif not anyUndecidedClause and value == UNDECIDED:
                 # We only need to see that one clause is undecided to know if any are undecided.
-                print('found undecided clause')
+                print('saw an undecided clause')
                 anyUndecidedClause = True
-        if anyUndecidedClause:
-            new_xi = decide_literal(clauses, assignments)
-            if not new_xi:
-                # There are no undecided literals, so we can't make any more decisions.
-                print('UNSAT due to no undecided literals')
-                continue
-            stack.append(('try', new_xi, 0))
-            stack.append(('try', new_xi, 1))
-        else:
+
+        # This should be checked before anyUndecidedClause, because UNSAT takes precedence over UNDECIDED.
+        if anUNSATClause is not None:
+            # If any clause is UNSAT, then the whole function is UNSAT for this branch
+            # So continue to next loop iteration, which will pop the stack.
+            print(f'there is an UNSAT clause, {clause}, so stopping this branch')
+            continue
+
+        if not anyUndecidedClause:
             # If no clauses are UNSAT and no clauses are undecided,
             # then all clauses are SAT and the whole function is SAT!
-            print('returning SAT')
-            return assignments # SAT
-
-    # If this point is reached, UNSAT
-    print('returning UNSAT')
+            print('RETURN: all clauses are SAT')
+            return current_assignments # SAT
+        else:
+            print('> undecided clauses, so choose a variable and push')
+            xi = decide_literal(clauses, current_assignments)
+            print(f'  (decided to try variable {xi})')
+            if not xi:
+                # There are no undecided literals, so we can't make any more decisions.
+                # This means that the function is UNSAT.
+                print('RETURN: UNSAT due to no undecided literals')
+                return {}
+            assert(current_assignments[xi] is None)
+            # Try xi=1
+            assignments1 = current_assignments.copy()
+            assignments1[xi] = 1
+            stack.append(assignments1)
+            # Try xi=0
+            assignments2 = current_assignments.copy()
+            assignments2[xi] = 0
+            stack.append(assignments2)
+    # UNSAT
+    print('RETURN: UNSAT due to no more possible assignments on the stack')
     return {}
 
 
@@ -475,7 +485,8 @@ def find_all_SAT(clauses: list[Clause]) -> list[dict[int,Any]]:
     Find all satisfying assignments for a boolean function in CNF.
     '''
     solutions: list[dict[int,Any]] = []
-    while (result := dpll(clauses)):
+    # Use the DPLL algorithm to find all solutions
+    while (result := dpll_iterative(clauses)):
         # Add the current solution to the list of solutions
         solutions.append(result)
         # Add a new clause to the CNF that blocks the current solution
@@ -579,44 +590,47 @@ def test_clause_value():
             exit(1)
 
 
-def test_dpll():
+def test_dpll(dpll_func):
+    print("Testing", dpll_func.__name__)
+
     # test no clauses (just make sure it doesn't crash)
-    assert(dpll([]) == {})
+    assert(dpll_func([]) == {})
 
     # Test a single clause with one positive literal (SAT)
     clauses = [make_CNF_clause([1], [])] # (x1)
-    result = dpll(clauses)
+    result = dpll_func(clauses)
     assert(result)
     assert(result[1] == 1)
     assert(result == {1:1})
 
     # Test a single clause with one negative literal (SAT)
     clauses = [make_CNF_clause([], [1])] # (~x1)
-    result = dpll(clauses)
+    result = dpll_func(clauses)
     assert(result)
     assert(result[1] == 0)
     assert(result == {1:0})
 
     # Test conflicting clauses (UNSAT)
     clauses = [make_CNF_clause([1], []), make_CNF_clause([], [1])] # (x1).(~x1)
-    result = dpll(clauses)
+    result = dpll_func(clauses)
+    print(result)
     assert(result == {})
 
     # Test 2 clauses
     clauses = [make_CNF_clause([1], []), make_CNF_clause([2], [])] # (x1).(x2)
-    result = dpll(clauses)
+    result = dpll_func(clauses)
     assert(result)
     assert(result == {1: 1, 2: 1})
 
     # Test 2 clauses (one has a positive literal, one is negative literal)
     clauses = [make_CNF_clause([1], []), make_CNF_clause([], [2])] # (x1).(~x2)
-    result = dpll(clauses)
+    result = dpll_func(clauses)
     assert(result)
     assert(result == {1: 1, 2: 0})
 
     # Test 2 clauses (both negative literals)
     clauses = [make_CNF_clause([], [1]), make_CNF_clause([], [2])] # (~x1).(~x2)
-    result = dpll(clauses)
+    result = dpll_func(clauses)
     assert(result)
     assert(result == {1: 0, 2: 0})
 
@@ -626,7 +640,8 @@ def main():
         # Run tests
         print('Running tests...')
         test_clause_value()
-        test_dpll()
+        test_dpll(dpll_rec)
+        test_dpll(dpll_iterative)
         print('All tests passed.')
 
     with open(args.file, "r") as file:
@@ -641,7 +656,7 @@ def main():
     cnf = convert_SOP_to_CNF(sop)
     print(".".join([str(c) for c in cnf])) # print clause list
 
-    result = dpll(cnf)
+    result = dpll_iterative(cnf)
     if result:
         print("Function is SAT with these assignments:")
         printAssignments(result)
