@@ -375,7 +375,7 @@ def dpll(clauses:list[Clause], assignments:dict|None=None) -> dict[int,Any]:
         # then all clauses are SAT and the whole function is SAT!
         return assignments # SAT
 
-    # At this point, the clauses are undecided.
+    # At this point, at least one of the clauses is undecided.
     # Choose a literal to try to assign to 1 or to 0...
     # And try those options out by branching recursively.
     xi: int = decide_literal(clauses, assignments)
