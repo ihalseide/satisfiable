@@ -28,7 +28,7 @@ class Clause:
         self.number = number
  
         # Assign data to clause. Should be the CNF clause
-        # Maps variable index -> value.
+        # Maps variable index to -> whether it is a POSITIVE or NEGATIVE literal.
         # For example, a variable index of `1` means the boolean function input variable "x1"
         self.data: dict[int,Any] = data
 
@@ -331,12 +331,12 @@ def values_of_literals(clause: Clause, assignments: dict) -> dict:
     return literal_and_assignment
 
 
-def all_undecided(clauses:list[Clause]) -> dict[int,Any]:
+def all_undecided(clauses:list[Clause]) -> dict[int, int|None]:
     '''
     Helper function for dpll() to create initial assignments where each variable is undecided.
     (So each xi is set to None.)
     '''
-    assignments: dict[int, Any] = dict()
+    assignments: dict[int, int|None] = dict()
     if not clauses:
         # Special case for no clauses
         return assignments
@@ -347,7 +347,7 @@ def all_undecided(clauses:list[Clause]) -> dict[int,Any]:
     return assignments
 
 
-def dpll_rec(clauses: list[Clause], assignments: dict[int,Any]|None=None) -> dict[int,Any]:
+def dpll_rec(clauses: list[Clause], assignments: dict[int,Any]|None=None) -> dict[int,int|None]:
     '''
     The recursive function implementation for dpll().
     Takes in a list of CNF clauses and a dictionary of decisions.
@@ -478,19 +478,21 @@ def make_blocking_clause(assignments: dict[int,Any]) -> Clause:
     return make_CNF_clause(pos, neg)
 
 
-def find_all_SAT(clauses: list[Clause]) -> list[dict[int,Any]]:
+def find_and_print_all_SAT(clauses: list[Clause]) -> list[dict[int,None]]:
     '''
     Find all satisfying assignments for a boolean function in CNF.
     '''
-    solutions: list[dict[int,Any]] = []
+    solutions: list[dict[int,None]] = []
     # Use the DPLL algorithm to find all solutions
-    while (result := dpll_iterative(clauses)):
+    while (solution := dpll_iterative(clauses)):
         # Add the current solution to the list of solutions
-        solutions.append(result)
+        print('- Solution: ',end='')
+        printAssignments(solution)
+        solutions.append(solution)
         # Add a new clause to the CNF that blocks the current solution
         # (i.e. add a clause that makes the current solution UNSAT).
         # This is called "blocking" the solution.
-        clauses.append(make_blocking_clause(result))
+        clauses.append(make_blocking_clause(solution))
     return solutions
 
 
@@ -760,7 +762,7 @@ def main():
     if args.dimacs:
         print('Parsing DIMACS file:', args.dimacs)
         clauses = read_DIMACS_file(args.dimacs)
-        result = find_all_SAT(clauses)
+        result = find_and_print_all_SAT(clauses)
         if result:
             print("Function is SAT with these assignments:")
             for i, r in enumerate(result):
@@ -787,12 +789,9 @@ def main():
         print_clauses_as_DIMACS(cnf)
         print('--- END DIMACS FORMAT')
 
-    result = find_all_SAT(cnf)
+    result = find_and_print_all_SAT(cnf)
     if result:
-        print("Function is SAT with these assignments:")
-        for i, r in enumerate(result):
-            print(end=f'- solution #{i+1}: ')
-            printAssignments(r)
+        print("Function is SAT with any of the above assignments")
     else:
         print("Function is UNSAT")
 
