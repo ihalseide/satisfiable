@@ -278,7 +278,7 @@ def clause_value(clause: Clause, assignments: dict) -> str:
     return UNDECIDED
 
 
-def find_maximum_literal(clauses: list[Clause]) -> int:
+def find_maximum_literal(clauses) -> int:
     '''
     Find the maximum variable index in a list of CNF clauses.
     This is useful for knowing the upper limit of how many variables there are in a boolean function.
@@ -743,8 +743,6 @@ def read_DIMACS_file(file_path: str) -> list[Clause]:
                 clause = parse_DIMACS_clause(line)
                 clauses.append(clause)
     assert(num_vars > 0)
-    print('expected clauses:', num_clauses)
-    print('got clauses:', len(clauses))
     assert(num_clauses == len(clauses))
     return clauses
 
