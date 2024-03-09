@@ -15,11 +15,8 @@ UNDECIDED = 'UNDECIDED'
 
 
 parser = argparse.ArgumentParser(description='Provide path to file with boolean function to check for SAT or UNSAT.\nFile must contain at least one function and no more than two.\nFunctions MUST be in SoP form.\nIf two functions are in file, pass in [-x, --xor] flag to find SAT on two functions.')
-parser.add_argument('-f', '--file', type=str, help='Enter the abolute path to a file', required=True)
+parser.add_argument('-f', '--file', type=str, help='Enter the abolute path to a file', required=False)
 parser.add_argument('-x', '--xor', help='XOR two functions and return SAT or UNSAT', required=False, action='store_true')
-
-args = parser.parse_args()
-
 
 class Clause:
     '''
@@ -505,7 +502,7 @@ def boolean_functions_are_equivalent(clauses1: list[Clause], clauses2: list[Clau
 
 
 def printAssignments(assignments: dict[int,Any]):
-    print("\n".join([f"x{i}={v}" for i, v in assignments.items()]))
+    print(", ".join([f"x{i}={v}" for i, v in assignments.items()]))
 
 
 def test_clause_value():
@@ -589,7 +586,7 @@ def test_clause_value():
 
 
 def test_dpll(dpll_func):
-    print("Testing", dpll_func.__name__)
+    print(f"Testing {dpll_func.__name__}()")
 
     # test no clauses (just make sure it doesn't crash)
     assert(dpll_func([]) == {})
@@ -632,14 +629,55 @@ def test_dpll(dpll_func):
     assert(result == {1: 0, 2: 0})
 
 
+def test_parse_SOP_string():
+    print('Testing parse_SOP_string()')
+    a = parse_SOP_string("x1")
+    assert(len(a) == 1)
+    assert(a[0].data == {1:1})
+
+    a = parse_SOP_string("x1 + x2 + x3")
+    assert(len(a) == 3)
+    assert(a[0].data == {1:1})
+    assert(a[1].data == {2:1})
+    assert(a[2].data == {3:1})
+
+    a = parse_SOP_string("x1 ~x2")
+    assert(len(a) == 1)
+    assert(a[0].data == {1:1, 2:0})
+
+    a = parse_SOP_string("x1 . ~x2")
+    assert(len(a) == 1)
+    assert(a[0].data == {1:1, 2:0})
+
+    a = parse_SOP_string("~x1 . ~x2")
+    assert(len(a) == 1)
+    assert(a[0].data == {1:0, 2:0})
+
+
+def test_convert_SOP_to_CNF():
+    print('Testing convert_SOP_to_CNF()')
+    print('[not implemented yet]')
+    pass
+
+
+def test_SAT_cnf():
+    print("Testing SAT_cnf.py")
+    test_clause_value()
+    test_dpll(dpll_rec)
+    test_dpll(dpll_iterative)
+    test_parse_SOP_string()
+    test_convert_SOP_to_CNF()
+    print('All tests passed!')
+
+
 def main():
-    if True:
+    args = parser.parse_args()
+
+    if not args.file:
         # Run tests
-        print('Running tests...')
-        test_clause_value()
-        test_dpll(dpll_rec)
-        test_dpll(dpll_iterative)
-        print('All tests passed.')
+        print('No file provided, Running tests...')
+        test_SAT_cnf()
+        return
 
     with open(args.file, "r") as file:
         function1 = file.readline()
@@ -653,10 +691,12 @@ def main():
     cnf = convert_SOP_to_CNF(sop)
     print(".".join([str(c) for c in cnf])) # print clause list
 
-    result = dpll_iterative(cnf)
+    result: list[dict] = find_all_SAT(cnf)
     if result:
         print("Function is SAT with these assignments:")
-        printAssignments(result)
+        for i, r in enumerate(result):
+            print(end=f'- solution #{i+1}: ')
+            printAssignments(r)
     else:
         print("Function is UNSAT")
 
