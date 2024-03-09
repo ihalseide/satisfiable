@@ -17,6 +17,7 @@ UNDECIDED = 'UNDECIDED'
 parser = argparse.ArgumentParser(description='Provide path to file with boolean function to check for SAT or UNSAT.\nFile must contain at least one function and no more than two.\nFunctions MUST be in SoP form.\nIf two functions are in file, pass in [-x, --xor] flag to find SAT on two functions.')
 parser.add_argument('-f', '--file', type=str, help='Enter the abolute path to a file', required=False)
 parser.add_argument('-x', '--xor', help='XOR two functions and return SAT or UNSAT', required=False, action='store_true')
+parser.add_argument('-d', '--dimacs', required=False, help="DIMACS file to parse instead of a function in POS form")
 
 class Clause:
     '''
@@ -672,13 +673,101 @@ def test_SAT_cnf():
     print('All tests passed!')
 
 
+def print_clauses_as_DIMACS(clauses: list[Clause]):
+    '''
+    Print the given clauses in DIMACS format.
+    '''
+    # Get the maximum variable index
+    max_var_i = find_maximum_literal(clauses)
+    # Print the header
+    print(f"p cnf {max_var_i} {len(clauses)}")
+    # Print each clause
+    for clause in clauses:
+        # Get the list of literals in the clause
+        literals = clause.sortedVars()
+        # Print the literals in the clause
+        for var_i, value in literals:
+            if value == POS_LIT:
+                print(var_i, end=" ")
+            elif value == NEG_LIT:
+                print(f"-{var_i}", end=" ")
+            else:
+                raise ValueError(f"invalid value {value} for variable {var_i}")
+        print("0")
+
+
+def parse_DIMACS_clause(line: str) -> Clause:
+    '''
+    Helper function for read_DIMACS_file().
+    '''
+    assert(line)
+    indices = line.split()
+    neg = set()
+    pos = set()
+    for index in indices:
+        xi = int(index)
+        if xi == 0:
+            break
+        elif xi < 0:
+            neg.add(-xi)
+        elif xi > 0:
+            pos.add(xi)
+    return make_CNF_clause(pos, neg)
+    
+
+def read_DIMACS_file(file_path: str) -> list[Clause]:
+    '''
+    Read a file in DIMACS format and return all of the clauses (CNF).
+    '''
+    clauses = []
+    num_vars = 0
+    num_clauses = 0
+    with open(file_path, "r") as file:
+        # Read the file into a list of lines
+        for line in file:
+            if not line:
+                # Skip blank lines
+                continue
+            elif line.startswith("c"):
+                # Skip any comments
+                continue
+            elif line.startswith("p"):
+                # p cnf <vars> <clauses>
+                _, _, num_vars_s, num_clauses_s = line.split()
+                num_vars = int(num_vars_s)
+                num_clauses = int(num_clauses_s)
+            else:
+                # Parse the clause
+                clause = parse_DIMACS_clause(line)
+                clauses.append(clause)
+    assert(num_vars > 0)
+    print('expected clauses:', num_clauses)
+    print('got clauses:', len(clauses))
+    assert(num_clauses == len(clauses))
+    return clauses
+
+
 def main():
     args = parser.parse_args()
+    print_DIMACS = True
 
-    if not args.file:
+    if not args.dimacs and not args.file:
         # Run tests
         print('No file provided, Running tests...')
         test_SAT_cnf()
+        return
+
+    if args.dimacs:
+        print('Parsing DIMACS file:', args.dimacs)
+        clauses = read_DIMACS_file(args.dimacs)
+        result = find_all_SAT(clauses)
+        if result:
+            print("Function is SAT with these assignments:")
+            for i, r in enumerate(result):
+                print(end=f'- solution #{i+1}: ')
+                printAssignments(r)
+        else:
+            print("Function is UNSAT")
         return
 
     with open(args.file, "r") as file:
@@ -692,6 +781,11 @@ def main():
     print('Converting to CNF, clauses are:')
     cnf = convert_SOP_to_CNF(sop)
     print(".".join([str(c) for c in cnf])) # print clause list
+
+    if print_DIMACS:
+        print('--- BEGIN DIMACS FORMAT')
+        print_clauses_as_DIMACS(cnf)
+        print('--- END DIMACS FORMAT')
 
     result = find_all_SAT(cnf)
     if result:
