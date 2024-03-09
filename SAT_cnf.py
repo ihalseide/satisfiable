@@ -3,9 +3,15 @@ from typing import Any
 import random
 import argparse
 
+
 # Two defined values for literals (the polarity)
 POS_LIT = 1 # positive literal, like x1
 NEG_LIT = 0 # negative literal, like ~x1
+
+# Clause/function result values
+SAT = 'SAT'
+UNSAT = 'UNSAT'
+UNDECIDED = 'UNDECIDED'
 
 
 parser = argparse.ArgumentParser(description='Provide path to file with boolean function to check for SAT or UNSAT.\nFile must contain at least one function and no more than two.\nFunctions MUST be in SoP form.\nIf two functions are in file, pass in [-x, --xor] flag to find SAT on two functions.')
@@ -22,7 +28,7 @@ class Clause:
     def __init__(self, number, data: dict[int, Any]):
         #Assign number to the clause
         self.number = number
-
+ 
         # Assign data to clause. Should be the CNF clause
         # Maps variable index -> value.
         # For example, a variable index of `1` means the boolean function input variable "x1"
@@ -40,7 +46,9 @@ class Clause:
         Get a readable string version of this clause.
         This method gets called automatically by str().
         '''
+        # get list of variable names, where negated variables are prefixed with '~'
         vars: list[str] = [f"x{i}" if (v == 1) else f"~x{i}" for i, v in self.sortedVars()]
+        # join the variable names together with '+' or '.'
         sep: str = " + " if isCNF else " . "
         return f"({sep.join(vars)})"
 
@@ -49,7 +57,7 @@ class Clause:
         String representation for a clause, just use the same readable version.
         This method is called automatically by repr() and str().
         '''
-        return str(self)
+        return self.__str__()
 
 
 def make_CNF_clause(ones: set[int]|list[int], zeros: set[int]|list[int], number=0) -> Clause:
@@ -115,7 +123,7 @@ def parse_SOP_string(text: str) -> list[Clause]: # not CNF clauses!
     # Make sure only this subset of characters is in the input string
     if not re.match(r"^([ \r\n.~+x0-9])+$", text, flags=re.IGNORECASE):
         raise ValueError("text string has forbidden characters for SOP form")
-    clauses: list[Clause] = []
+    clauses: list[Clause] = [] 
     # split apart all of the product terms which are OR'ed together
     terms = text.split('+')
     # pattern to match one postive or negative literal
@@ -228,8 +236,7 @@ def add_or_GCF(toList: list[Clause], or_input_vars, output_var: int):
     toList.append(make_CNF_clause(ones=list(or_input_vars), zeros=[output_var]))
 
 
-# placeholder function:
-def clause_value_given_assignments(clause: Clause, assignments: dict):
+def clause_value(clause: Clause, assignments: dict) -> str:
     '''
     Function to determine if clause is UNSAT or UNDECIDED.
     A clause is SAT if at least ONE literal evaluates to True
@@ -244,34 +251,33 @@ def clause_value_given_assignments(clause: Clause, assignments: dict):
     list_of_literals = list(clause.data.keys())
 
     # Keep track of number of literals that evaluate to False
-    count = 0
+    countFalse = 0
 
     # Loop through the lists and compare the literal in the clause
     # with it's corresponding dictionary value
     # Returns a dictionary of the literal and it's value within the clause
-    literal_and_assignment: dict = value_of_literal(clause, assignments)
+    literals_and_assignments: dict = values_of_literals(clause, assignments)
 
     # Count number of 0's assigned in the clause
     # A clause is UNSAT if all literals are false.
-    for i in range(0, len(literal_and_assignment.keys())):
-        current_literal = list_of_literals[i]
+    for val in literals_and_assignments.values():
 
         # Count the amount of 0's in a given clause
-        if literal_and_assignment[current_literal] == NEG_LIT:
-            count += 1
+        if val == NEG_LIT:
+            countFalse += 1
         
         # Return 'SAT' if any literal is 1. This means the clause is SAT
-        elif literal_and_assignment[current_literal] == POS_LIT:
-            return 'SAT'
+        elif val == POS_LIT:
+            return SAT
 
     # If the amount of 0's counted in the given clause is equal to the number of
     # literals in the given clause then we know that all literals are 0.
-    # This means the clause evaluates to False and is 'UNSAT'.
-    if count == len(list_of_literals):
-        return 'UNSAT'
+    # This means the clause evaluates to False and is UNSAT.
+    if countFalse == len(list_of_literals):
+        return UNSAT
     
     # If were here then clause must be UNDECIDED since no other condition is met
-    return 'UNDECIDED'
+    return UNDECIDED
 
 
 def find_maximum_literal(clauses: list[Clause]) -> int:
@@ -283,16 +289,20 @@ def find_maximum_literal(clauses: list[Clause]) -> int:
     return max([max(clause.data.keys()) for clause in clauses])
 
 
-def decide_literal(clauses: list[Clause], decisions: dict) -> int:
+def decide_literal(clauses: list[Clause], decisions: dict) -> int|None:
     '''
     Choose an unassigned literal to try next.
+    Returns the index of the literal to try next, or None if there are no undecided literals.
     '''
+    # NOTE: this doesn't use the clauses at all (yet), but it could be modified to use them.
     undecided = [xi for xi, value in decisions.items() if value is None]
+    if not undecided:
+        return None
     # For now, just choose a random undecided variable.
     return random.choice(undecided)
 
 
-def value_of_literal(clause: Clause, assignments: dict):
+def values_of_literals(clause: Clause, assignments: dict) -> dict:
     '''
     Helper function to assign and get literal values of the current clause
 
@@ -301,22 +311,18 @@ def value_of_literal(clause: Clause, assignments: dict):
     # Dictionary to hold the mapping of the literal to it's value
     literal_and_assignment = dict()
 
-    # List of literals in clause
-    literals_list = list(clause.data.keys())
-
     # Loop through the literals to assign the values of the literal appropriately
     # Set the current_literal to the current index of the literal
-    for i in range(0, len(list(clause.data.keys()))):
-        current_literal = literals_list[i]
+    for current_literal, val in clause.data.items():
 
         # If the literal is negative AND it's assigned as a 1,
         # Assign the complement 0
-        if list(clause.data.values())[i] == NEG_LIT and assignments[current_literal] == POS_LIT:
+        if val == NEG_LIT and assignments[current_literal] == POS_LIT:
             literal_and_assignment[current_literal] = NEG_LIT
 
         # If the literal is negative AND it's assigned as a 0,
         # Assign the complement 1
-        elif list(clause.data.values())[i] == NEG_LIT and assignments[current_literal] == NEG_LIT:
+        elif val == NEG_LIT and assignments[current_literal] == NEG_LIT:
             literal_and_assignment[current_literal] = POS_LIT
     
         # If the literal is positive, keep the current assignment
@@ -332,45 +338,41 @@ def all_undecided(clauses:list[Clause]) -> dict[int,Any]:
     Helper function for dpll() to create initial assignments where each variable is undecided.
     (So each xi is set to None.)
     '''
-    # Initialize the assignments dictionary to have all variables undecided.
     assignments: dict[int, Any] = dict()
+    if not clauses:
+        # Special case for no clauses
+        return assignments
+    # Initialize the assignments dictionary to have all variables undecided.
     max_var_i = find_maximum_literal(clauses)
     for i in range(1, max_var_i + 1):
         assignments[i] = None
     return assignments
 
 
-def dpll(clauses:list[Clause]) -> dict[int,Any]:
-    '''
-    DPLL algorithm for SAT solving.
-    Takes in a list of CNF clauses representing a boolean function.
-    Returns: the assignments for literals that make the SAT problem true, or returns 'UNSAT' if no decisions can make the function SAT.
-    '''
-    # Start out with all variables undecided.
-    assignments = all_undecided(clauses)
-    # But, assign the output literal/variable to be 1
-    output_var_i = find_maximum_literal(clauses)
-    assignments[output_var_i] = 1
-    return dpll_rec(clauses, assignments)
-
-
-def dpll_rec(clauses:list[Clause], assignments:dict) -> dict[int,Any]:
+def dpll_rec(clauses: list[Clause], assignments: dict[int,Any]|None=None) -> dict[int,Any]:
     '''
     The recursive function implementation for dpll().
     Takes in a list of CNF clauses and a dictionary of decisions.
     Returns: the assignments for literals that make the SAT problem true,
     which is an empty dictionary if the function is UNSAT.
+
+    NOTE: DON'T remove this function because it is useful for validating the iterative version !!!
     '''
+    if not assignments:
+        assignments = all_undecided(clauses)
     # Base cases:
-    # - if all clauses are SAT, then return the assignments.
-    # - if any clause is UNSAT, then return 'UNSAT'.
+    # - if all clauses are SAT, then then the function is SAT.
+    # - if any clause is UNSAT, then the function is UNSAT.
+    # - if there are no clauses, then the function is SAT.
+    if not clauses:
+        return assignments # SAT
     anyUndecidedClause: bool = False
     for clause in clauses:
-        value = clause_value_given_assignments(clause, assignments)
-        if value == 'UNSAT':
+        value = clause_value(clause, assignments)
+        if value == UNSAT:
             # If any clause is UNSAT, then the whole function is UNSAT.
             return {} # UNSAT
-        elif value == 'UNDECIDED':
+        elif value == UNDECIDED:
             # We only need to see that one clause is undecided to know if any are undecided.
             anyUndecidedClause = True
     if not anyUndecidedClause:
@@ -378,10 +380,14 @@ def dpll_rec(clauses:list[Clause], assignments:dict) -> dict[int,Any]:
         # then all clauses are SAT and the whole function is SAT!
         return assignments # SAT
 
-    # At this point, the clauses are undecided.
+    # At this point, at least one of the clauses is undecided.
     # Choose a literal to try to assign to 1 or to 0...
     # And try those options out by branching recursively.
-    xi: int = decide_literal(clauses, assignments)
+    xi: int|None = decide_literal(clauses, assignments)
+    if not xi:
+        # There are no undecided literals, so we can't make any more decisions.
+        # This means that the function is UNSAT.
+        return {}
     assert(assignments[xi] is None)
     # Try xi=1
     assignments[xi] = 1
@@ -396,6 +402,69 @@ def dpll_rec(clauses:list[Clause], assignments:dict) -> dict[int,Any]:
     # If both xi=1 and xi=0 failed, then this whole recursive branch is UNSAT.
     # So return UNSAT to the callee (probably the previous recursive call).
     assignments[xi] = None # undo the decision
+    return {} # UNSAT
+
+
+def dpll_iterative(clauses: list[Clause]) -> dict[int,Any]:
+    '''
+    Implementation of DPLL using a loop instead of recursion.
+    '''
+    assignments1 = all_undecided(clauses)
+    assignments2 = assignments1.copy()
+    starting_xi = decide_literal(clauses, assignments1)
+    if starting_xi is None:
+        # It's not possible to make any decisions/assignments, so return empty dictionary,
+        # which is considered UNSAT.
+        return {}
+    assignments1[starting_xi] = 1
+    assignments2[starting_xi] = 0
+    stack = []
+    stack.append(assignments1)
+    stack.append(assignments2)
+    while stack:
+        current_assignments = stack.pop()
+        anyUndecidedClause: bool = False
+        anUNSATClause: Clause|None = None
+        for clause in clauses:
+            value = clause_value(clause, current_assignments)
+            if value == UNSAT:
+                # If any clause is UNSAT, then the whole function is UNSAT.
+                anUNSATClause = clause
+                break
+            elif (not anyUndecidedClause) and (value == UNDECIDED):
+                # We only need to see that one clause is undecided to know if any are undecided.
+                anyUndecidedClause = True
+
+        # This should be checked before anyUndecidedClause, because UNSAT takes precedence over UNDECIDED.
+        if anUNSATClause is not None:
+            # If any clause is UNSAT, then the whole function is UNSAT for this branch.
+            # So, continue to next loop iteration to try the next branch(es).
+            continue
+
+        if not anyUndecidedClause:
+            # If no clauses are UNSAT and no clauses are undecided,
+            # then all clauses are SAT and the whole function is SAT!
+            return current_assignments # SAT
+        else:
+            # At this point, at least one of the clauses is undecided,
+            # So lets add two decisions to the stack to try next...
+            xi = decide_literal(clauses, current_assignments)
+            if not xi:
+                # There are no undecided literals, so we can't make any more decisions.
+                # This means that the function is UNSAT.
+                return {} # UNSAT
+            assert(current_assignments[xi] is None)
+            # Try xi=1
+            # (We don't need to make a copy of the current_assignments dictionary,
+            #   because it is not used again after this loop iteration.)
+            current_assignments[xi] = 1
+            stack.append(current_assignments)
+            # Try xi=0
+            # (Make a copy of the dictionary this time, because we need to make a different decision.)
+            assignments2 = current_assignments.copy()
+            assignments2[xi] = 0
+            stack.append(assignments2)
+    # UNSAT due to no more possible assignments on the stack
     return {} # UNSAT
 
 
@@ -414,7 +483,8 @@ def find_all_SAT(clauses: list[Clause]) -> list[dict[int,Any]]:
     Find all satisfying assignments for a boolean function in CNF.
     '''
     solutions: list[dict[int,Any]] = []
-    while (result := dpll(clauses)):
+    # Use the DPLL algorithm to find all solutions
+    while (result := dpll_iterative(clauses)):
         # Add the current solution to the list of solutions
         solutions.append(result)
         # Add a new clause to the CNF that blocks the current solution
@@ -440,60 +510,164 @@ def printAssignments(assignments: dict[int,Any]):
 
 def test_clause_value():
     '''
-    Test the caluse_value_given_assignments() function
+    Test the clause_value() function
     '''
     # test one positive literal (x1)
     c = make_CNF_clause([1], [])
 
     # postive literal is set to 1
-    v = clause_value_given_assignments(c, {1:1})
-    assert(v == 'SAT')
+    v = clause_value(c, {1:1})
+    assert(v == SAT)
 
     # Setting clause with only one literal to 0
-    v = clause_value_given_assignments(c, {1:0})
-    assert(v == 'UNSAT')
+    v = clause_value(c, {1:0})
+    assert(v == UNSAT)
 
     # The only literal is undecided
-    v = clause_value_given_assignments(c, {1:None})
-    assert(v == 'UNDECIDED')
+    v = clause_value(c, {1:None})
+    assert(v == UNDECIDED)
 
     # Test one negative literal (~x1)
     c = make_CNF_clause([], [1])
 
     # assign the literal to 1, which makes the clause false
-    v = clause_value_given_assignments(c, {1:1})
-    assert(v == 'UNSAT')
+    v = clause_value(c, {1:1})
+    assert(v == UNSAT)
 
     # assign the literal to 0, which makes the clause true
-    v = clause_value_given_assignments(c, {1:0})
-    assert(v == 'SAT')
+    v = clause_value(c, {1:0})
+    assert(v == SAT)
+
+    # The only literal is undecided
+    v = clause_value(c, {1:None})
+    assert(v == UNDECIDED)
+
+    # Test a clause with 2 literals
+    c = make_CNF_clause([1,2], [])
+    testPairs2 = [
+        ({1:1, 2:1}, SAT),
+        ({1:1, 2:0}, SAT),
+        ({1:0, 2:1}, SAT),
+        ({1:0, 2:0}, UNSAT),
+        ({1:None, 2:None}, UNDECIDED),
+        ({1:0, 2:None}, UNDECIDED),
+        ({1:None, 2:0}, UNDECIDED),
+        ({1:1, 2:None}, SAT),
+        ({1:None, 2:1}, SAT),
+    ]
+    for assignment, expected in testPairs2:
+        v = clause_value(c, assignment)
+        try:
+            assert(v == expected)
+        except AssertionError:
+            print(f"Failed test with assignments {assignment} and expected {expected} but got {v}")
+            exit(1)
+
+    # Test a clause with 3 positive literals
+    # (not testing all combinations of 0,1, and None)
+    c = make_CNF_clause([1,2,3], [])
+    testPairs3 = [
+        ({1:1, 2:1, 3:1}, SAT),
+        ({1:1, 2:1, 3:0}, SAT),
+        ({1:1, 2:0, 3:1}, SAT),
+        ({1:1, 2:0, 3:0}, SAT),
+        ({1:0, 2:1, 3:1}, SAT),
+        ({1:0, 2:1, 3:0}, SAT),
+        ({1:0, 2:0, 3:1}, SAT),
+        ({1:0, 2:0, 3:0}, UNSAT),
+        ({1:0, 2:1, 3:None}, SAT),
+        ({1:None, 2:None, 3:1}, SAT),
+        ({1:None, 2:0, 3:None}, UNDECIDED),
+    ]
+    for assignment, expected in testPairs3:
+        v = clause_value(c, assignment)
+        try:
+            assert(v == expected)
+        except AssertionError:
+            print(f"Failed test with assignments {assignment} and expected {expected} but got {v}")
+            exit(1)
 
 
-test_clause_value()
+def test_dpll(dpll_func):
+    print("Testing", dpll_func.__name__)
+
+    # test no clauses (just make sure it doesn't crash)
+    assert(dpll_func([]) == {})
+
+    # Test a single clause with one positive literal (SAT)
+    clauses = [make_CNF_clause([1], [])] # (x1)
+    result = dpll_func(clauses)
+    assert(result)
+    assert(result[1] == 1)
+    assert(result == {1:1})
+
+    # Test a single clause with one negative literal (SAT)
+    clauses = [make_CNF_clause([], [1])] # (~x1)
+    result = dpll_func(clauses)
+    assert(result)
+    assert(result[1] == 0)
+    assert(result == {1:0})
+
+    # Test conflicting clauses (UNSAT)
+    clauses = [make_CNF_clause([1], []), make_CNF_clause([], [1])] # (x1).(~x1)
+    result = dpll_func(clauses)
+    assert(result == {})
+
+    # Test 2 clauses
+    clauses = [make_CNF_clause([1], []), make_CNF_clause([2], [])] # (x1).(x2)
+    result = dpll_func(clauses)
+    assert(result)
+    assert(result == {1: 1, 2: 1})
+
+    # Test 2 clauses (one has a positive literal, one is negative literal)
+    clauses = [make_CNF_clause([1], []), make_CNF_clause([], [2])] # (x1).(~x2)
+    result = dpll_func(clauses)
+    assert(result)
+    assert(result == {1: 1, 2: 0})
+
+    # Test 2 clauses (both negative literals)
+    clauses = [make_CNF_clause([], [1]), make_CNF_clause([], [2])] # (~x1).(~x2)
+    result = dpll_func(clauses)
+    assert(result)
+    assert(result == {1: 0, 2: 0})
+
+
 def main():
+    if True:
+        # Run tests
+        print('Running tests...')
+        test_clause_value()
+        test_dpll(dpll_rec)
+        test_dpll(dpll_iterative)
+        print('All tests passed.')
+
     with open(args.file, "r") as file:
         function1 = file.readline()
         if args.xor:
             function2 = file.readlines()[0]
 
-    print("function 1 is {}".format(function1))
-    print("function 2 is {}".format(function2))
-        
-    print('Parsing SOP input:', function1)
-    sop = parse_SOP_string(function1)
-    print('Parsed result:', str(sop))
-    print('Converting to CNF, clauses are:')
-    cnf = convert_SOP_to_CNF(sop)
-    print(".".join([str(c) for c in cnf])) # print clause list
-    n = max(cnf[-1].data.keys()) # quick and overly specific way to do this
-    print(f"The output variable is x{n} and must be set to 1.")
+    if args.xor:
 
-    result = dpll(cnf)
+        print('Parsing SOP input for function 1:', function1)
+        sop1 = parse_SOP_string(function1)
+        print('Parsed result:', '+'.join([x.__str__(False) for x in sop1]))
+        print('Parsing SOP input for function 2:', function2)
+        sop2 = parse_SOP_string(function2)
+        print('Parsed result:', '+'.join([x.__str__(False) for x in sop2]))
+        print('Converting to CNF for function 1, clauses are:')
+        cnf1 = convert_SOP_to_CNF(sop1)
+        print(".".join([str(c) for c in cnf1])) # print clause list
+        print('Converting to CNF for function 2, clauses are:')
+        cnf2 = convert_SOP_to_CNF(sop2)
+        print(".".join([str(c) for c in cnf2])) # print clause list
+
+    result = dpll_iterative(cnf1)
     if result:
         print("Function is SAT with these assignments:")
         printAssignments(result)
     else:
         print("Function is UNSAT")
+
 
 if __name__ == "__main__":
     main()
