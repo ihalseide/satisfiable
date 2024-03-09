@@ -15,11 +15,9 @@ UNDECIDED = 'UNDECIDED'
 
 
 parser = argparse.ArgumentParser(description='Provide path to file with boolean function to check for SAT or UNSAT.\nFile must contain at least one function and no more than two.\nFunctions MUST be in SoP form.\nIf two functions are in file, pass in [-x, --xor] flag to find SAT on two functions.')
-parser.add_argument('-f', '--file', type=str, help='Enter the abolute path to a file', required=True)
+parser.add_argument('-f', '--file', type=str, help='Enter the abolute path to a file', required=False)
 parser.add_argument('-x', '--xor', help='XOR two functions and return SAT or UNSAT', required=False, action='store_true')
-
-args = parser.parse_args()
-
+parser.add_argument('-d', '--dimacs', required=False, help="DIMACS file to parse instead of a function in POS form")
 
 class Clause:
     '''
@@ -30,7 +28,7 @@ class Clause:
         self.number = number
  
         # Assign data to clause. Should be the CNF clause
-        # Maps variable index -> value.
+        # Maps variable index to -> whether it is a POSITIVE or NEGATIVE literal.
         # For example, a variable index of `1` means the boolean function input variable "x1"
         self.data: dict[int,Any] = data
 
@@ -59,6 +57,26 @@ class Clause:
         '''
         return self.__str__()
 
+
+class ClauseList:
+    '''
+    Class to track:
+        The list of clauses in a given function.
+        The last variable index from SOP form.
+        The maximum variable index from CNF.
+    '''
+    def __init__(self, sop_input: str):
+        self.sop_clauses = parse_SOP_string(sop_input)
+    
+    def last_var_index_sop(self):
+        return len(self.sop_clauses) - 1
+    
+    def max_var_index_CNF(self):
+        return len(convert_SOP_to_CNF(self.sop_clauses)) - 1
+        
+    def printClauseList(self):
+        print(self.sop_clauses)
+        
 
 def make_CNF_clause(ones: set[int]|list[int], zeros: set[int]|list[int], number=0) -> Clause:
     '''
@@ -280,7 +298,7 @@ def clause_value(clause: Clause, assignments: dict) -> str:
     return UNDECIDED
 
 
-def find_maximum_literal(clauses: list[Clause]) -> int:
+def find_maximum_literal(clauses) -> int:
     '''
     Find the maximum variable index in a list of CNF clauses.
     This is useful for knowing the upper limit of how many variables there are in a boolean function.
@@ -333,12 +351,12 @@ def values_of_literals(clause: Clause, assignments: dict) -> dict:
     return literal_and_assignment
 
 
-def all_undecided(clauses:list[Clause]) -> dict[int,Any]:
+def all_undecided(clauses:list[Clause]) -> dict[int, int|None]:
     '''
     Helper function for dpll() to create initial assignments where each variable is undecided.
     (So each xi is set to None.)
     '''
-    assignments: dict[int, Any] = dict()
+    assignments: dict[int, int|None] = dict()
     if not clauses:
         # Special case for no clauses
         return assignments
@@ -349,7 +367,7 @@ def all_undecided(clauses:list[Clause]) -> dict[int,Any]:
     return assignments
 
 
-def dpll_rec(clauses: list[Clause], assignments: dict[int,Any]|None=None) -> dict[int,Any]:
+def dpll_rec(clauses: list[Clause], assignments: dict[int,Any]|None=None) -> dict[int,int|None]:
     '''
     The recursive function implementation for dpll().
     Takes in a list of CNF clauses and a dictionary of decisions.
@@ -409,13 +427,15 @@ def dpll_iterative(clauses: list[Clause]) -> dict[int,Any]:
     '''
     Implementation of DPLL using a loop instead of recursion.
     '''
-    assignments1 = all_undecided(clauses)
-    assignments2 = assignments1.copy()
-    starting_xi = decide_literal(clauses, assignments1)
-    if starting_xi is None:
+    if not clauses:
+        # Edge case where clauses is empty.
         # It's not possible to make any decisions/assignments, so return empty dictionary,
         # which is considered UNSAT.
         return {}
+    assignments1 = all_undecided(clauses)
+    assignments2 = assignments1.copy()
+    starting_xi = decide_literal(clauses, assignments1)
+    assert(starting_xi)
     assignments1[starting_xi] = 1
     assignments2[starting_xi] = 0
     stack = []
@@ -478,19 +498,21 @@ def make_blocking_clause(assignments: dict[int,Any]) -> Clause:
     return make_CNF_clause(pos, neg)
 
 
-def find_all_SAT(clauses: list[Clause]) -> list[dict[int,Any]]:
+def find_and_print_all_SAT(clauses: list[Clause]) -> list[dict[int,None]]:
     '''
     Find all satisfying assignments for a boolean function in CNF.
     '''
-    solutions: list[dict[int,Any]] = []
+    solutions: list[dict[int,None]] = []
     # Use the DPLL algorithm to find all solutions
-    while (result := dpll_iterative(clauses)):
+    while (solution := dpll_iterative(clauses)):
         # Add the current solution to the list of solutions
-        solutions.append(result)
+        print('- Solution: ',end='')
+        printAssignments(solution)
+        solutions.append(solution)
         # Add a new clause to the CNF that blocks the current solution
         # (i.e. add a clause that makes the current solution UNSAT).
         # This is called "blocking" the solution.
-        clauses.append(make_blocking_clause(result))
+        clauses.append(make_blocking_clause(solution))
     return solutions
 
 
@@ -505,7 +527,7 @@ def boolean_functions_are_equivalent(clauses1: list[Clause], clauses2: list[Clau
 
 
 def printAssignments(assignments: dict[int,Any]):
-    print("\n".join([f"x{i}={v}" for i, v in assignments.items()]))
+    print(", ".join([f"x{i}={v}" for i, v in assignments.items()]))
 
 
 def test_clause_value():
@@ -556,11 +578,11 @@ def test_clause_value():
         ({1:None, 2:1}, SAT),
     ]
     for assignment, expected in testPairs2:
-        v = clause_value(c, assignment)
+        actual = clause_value(c, assignment)
         try:
-            assert(v == expected)
+            assert(actual == expected)
         except AssertionError:
-            print(f"Failed test with assignments {assignment} and expected {expected} but got {v}")
+            print(f"Failed test with assignments {assignment} and expected {expected} but got {actual}")
             exit(1)
 
     # Test a clause with 3 positive literals
@@ -589,7 +611,7 @@ def test_clause_value():
 
 
 def test_dpll(dpll_func):
-    print("Testing", dpll_func.__name__)
+    print(f"Testing {dpll_func.__name__}()")
 
     # test no clauses (just make sure it doesn't crash)
     assert(dpll_func([]) == {})
@@ -632,39 +654,162 @@ def test_dpll(dpll_func):
     assert(result == {1: 0, 2: 0})
 
 
+def test_parse_SOP_string():
+    print('Testing parse_SOP_string()')
+    a = parse_SOP_string("x1")
+    assert(len(a) == 1)
+    assert(a[0].data == {1:1})
+
+    a = parse_SOP_string("x1 + x2 + x3")
+    assert(len(a) == 3)
+    assert(a[0].data == {1:1})
+    assert(a[1].data == {2:1})
+    assert(a[2].data == {3:1})
+
+    a = parse_SOP_string("x1 ~x2")
+    assert(len(a) == 1)
+    assert(a[0].data == {1:1, 2:0})
+
+    a = parse_SOP_string("x1 . ~x2")
+    assert(len(a) == 1)
+    assert(a[0].data == {1:1, 2:0})
+
+    a = parse_SOP_string("~x1 . ~x2")
+    assert(len(a) == 1)
+    assert(a[0].data == {1:0, 2:0})
+
+
+def test_convert_SOP_to_CNF():
+    print('Testing convert_SOP_to_CNF()')
+    print('[not implemented yet]')
+    pass
+
+
+def test_SAT_cnf():
+    print("Testing SAT_cnf.py")
+    test_clause_value()
+    test_dpll(dpll_rec)
+    test_dpll(dpll_iterative)
+    test_parse_SOP_string()
+    test_convert_SOP_to_CNF()
+    print('All tests passed!')
+
+
+def print_clauses_as_DIMACS(clauses: list[Clause]):
+    '''
+    Print the given clauses in DIMACS format.
+    '''
+    # Get the maximum variable index
+    max_var_i = find_maximum_literal(clauses)
+    # Print the header
+    print(f"p cnf {max_var_i} {len(clauses)}")
+    # Print each clause
+    for clause in clauses:
+        # Get the list of literals in the clause
+        literals = clause.sortedVars()
+        # Print the literals in the clause
+        for var_i, value in literals:
+            if value == POS_LIT:
+                print(var_i, end=" ")
+            elif value == NEG_LIT:
+                print(f"-{var_i}", end=" ")
+            else:
+                raise ValueError(f"invalid value {value} for variable {var_i}")
+        print("0")
+
+
+def parse_DIMACS_clause(line: str) -> Clause:
+    '''
+    Helper function for read_DIMACS_file().
+    '''
+    assert(line)
+    indices = line.split()
+    neg = set()
+    pos = set()
+    for index in indices:
+        xi = int(index)
+        if xi == 0:
+            break
+        elif xi < 0:
+            neg.add(-xi)
+        elif xi > 0:
+            pos.add(xi)
+    return make_CNF_clause(pos, neg)
+    
+
+def read_DIMACS_file(file_path: str) -> list[Clause]:
+    '''
+    Read a file in DIMACS format and return all of the clauses (CNF).
+    '''
+    clauses = []
+    num_vars = 0
+    num_clauses = 0
+    with open(file_path, "r") as file:
+        # Read the file into a list of lines
+        for line in file:
+            if not line:
+                # Skip blank lines
+                continue
+            elif line.startswith("c"):
+                # Skip any comments
+                continue
+            elif line.startswith("p"):
+                # p cnf <vars> <clauses>
+                _, _, num_vars_s, num_clauses_s = line.split()
+                num_vars = int(num_vars_s)
+                num_clauses = int(num_clauses_s)
+            else:
+                # Parse the clause
+                clause = parse_DIMACS_clause(line)
+                clauses.append(clause)
+    assert(num_vars > 0)
+    assert(num_clauses == len(clauses))
+    return clauses
+
+
 def main():
-    if True:
+    args = parser.parse_args()
+    print_DIMACS = True
+
+    if not args.dimacs and not args.file:
         # Run tests
-        print('Running tests...')
-        test_clause_value()
-        test_dpll(dpll_rec)
-        test_dpll(dpll_iterative)
-        print('All tests passed.')
+        print('No file provided, Running tests...')
+        test_SAT_cnf()
+        return
+
+    if args.dimacs:
+        print('Parsing DIMACS file:', args.dimacs)
+        clauses = read_DIMACS_file(args.dimacs)
+        result = find_and_print_all_SAT(clauses)
+        if result:
+            print("Function is SAT with these assignments:")
+            for i, r in enumerate(result):
+                print(end=f'- solution #{i+1}: ')
+                printAssignments(r)
+        else:
+            print("Function is UNSAT")
+        return
 
     with open(args.file, "r") as file:
         function1 = file.readline()
         if args.xor:
-            function2 = file.readlines()[0]
+            function2 = file.readlines()[1]
+        
+    print('Parsing SOP input:', function1)
+    sop = parse_SOP_string(function1)
+    print('Parsed result:', '+'.join([x.__str__(isCNF=False) for x in sop]))
+    print('Converting to CNF, clauses are:')
+    cnf = convert_SOP_to_CNF(sop)
+    print(".".join([str(c) for c in cnf])) # print clause list
 
-    if args.xor:
+    if print_DIMACS:
+        print('--- BEGIN DIMACS FORMAT')
+        print_clauses_as_DIMACS(cnf)
+        print('--- END DIMACS FORMAT')
 
-        print('Parsing SOP input for function 1:', function1)
-        sop1 = parse_SOP_string(function1)
-        print('Parsed result:', '+'.join([x.__str__(False) for x in sop1]))
-        print('Parsing SOP input for function 2:', function2)
-        sop2 = parse_SOP_string(function2)
-        print('Parsed result:', '+'.join([x.__str__(False) for x in sop2]))
-        print('Converting to CNF for function 1, clauses are:')
-        cnf1 = convert_SOP_to_CNF(sop1)
-        print(".".join([str(c) for c in cnf1])) # print clause list
-        print('Converting to CNF for function 2, clauses are:')
-        cnf2 = convert_SOP_to_CNF(sop2)
-        print(".".join([str(c) for c in cnf2])) # print clause list
-
-    result = dpll_iterative(cnf1)
+    result = find_and_print_all_SAT(cnf)
     if result:
-        print("Function is SAT with these assignments:")
-        printAssignments(result)
+        print("Function is SAT with any of the above assignments")
     else:
         print("Function is UNSAT")
 
