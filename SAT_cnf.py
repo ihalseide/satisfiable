@@ -406,13 +406,15 @@ def dpll_iterative(clauses: list[Clause]) -> dict[int,Any]:
     '''
     Implementation of DPLL using a loop instead of recursion.
     '''
-    assignments1 = all_undecided(clauses)
-    assignments2 = assignments1.copy()
-    starting_xi = decide_literal(clauses, assignments1)
-    if starting_xi is None:
+    if not clauses:
+        # Edge case where clauses is empty.
         # It's not possible to make any decisions/assignments, so return empty dictionary,
         # which is considered UNSAT.
         return {}
+    assignments1 = all_undecided(clauses)
+    assignments2 = assignments1.copy()
+    starting_xi = decide_literal(clauses, assignments1)
+    assert(starting_xi)
     assignments1[starting_xi] = 1
     assignments2[starting_xi] = 0
     stack = []
@@ -553,11 +555,11 @@ def test_clause_value():
         ({1:None, 2:1}, SAT),
     ]
     for assignment, expected in testPairs2:
-        v = clause_value(c, assignment)
+        actual = clause_value(c, assignment)
         try:
-            assert(v == expected)
+            assert(actual == expected)
         except AssertionError:
-            print(f"Failed test with assignments {assignment} and expected {expected} but got {v}")
+            print(f"Failed test with assignments {assignment} and expected {expected} but got {actual}")
             exit(1)
 
     # Test a clause with 3 positive literals
@@ -686,12 +688,12 @@ def main():
         
     print('Parsing SOP input:', function1)
     sop = parse_SOP_string(function1)
-    print('Parsed result:', '+'.join([x.__str__(False) for x in sop]))
+    print('Parsed result:', '+'.join([x.__str__(isCNF=False) for x in sop]))
     print('Converting to CNF, clauses are:')
     cnf = convert_SOP_to_CNF(sop)
     print(".".join([str(c) for c in cnf])) # print clause list
 
-    result: list[dict] = find_all_SAT(cnf)
+    result = find_all_SAT(cnf)
     if result:
         print("Function is SAT with these assignments:")
         for i, r in enumerate(result):
