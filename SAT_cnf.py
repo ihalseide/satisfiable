@@ -1,11 +1,20 @@
 import re
 from typing import Any
 import random
+import argparse
+from itertools import islice
 
 
 # Two defined values for literals (the polarity)
 POS_LIT = 1 # positive literal, like x1
 NEG_LIT = 0 # negative literal, like ~x1
+
+
+parser = argparse.ArgumentParser(description='Provide path to file with boolean function to check for SAT or UNSAT.\nFile must contain at least one function and no more than two.\nFunctions MUST be in SoP form.\nIf two functions are in file, pass in [-x, --xor] flag to find SAT on two functions.')
+parser.add_argument('-f', '--file', type=str, help='Enter the abolute path to a file', required=True)
+parser.add_argument('-x', '--xor', help='XOR two functions and return SAT or UNSAT', required=False, action='store_true')
+
+args = parser.parse_args()
 
 
 class Clause:
@@ -223,9 +232,49 @@ def add_or_GCF(toList: list[Clause], or_input_vars, output_var: int):
     toList.append(make_CNF_clause(ones=list(or_input_vars), zeros=[output_var]))
 
 
-# TODO: implement this function!
-def clause_value_given_assignments(clause:Clause, assignments:dict[int,Any]) -> str:
-    assert(False) # not implemented yet
+def clause_value_given_assignments(clause: Clause, assignments: dict) -> str:
+    '''
+    Function to determine if clause is UNSAT or UNDECIDED.
+    A clause is SAT if at least ONE literal evaluates to True
+    A clause is UNSAT if all literals evaluate to False
+    A clause is UNDECIDED if at least ONE literal is unassigned (This includes Unit Clauses)
+    
+    Return SAT if clause is SAT
+    Return UNSAT if clause is UNSAT
+    Return UNDECIDED if clause is UNDECIDED
+    '''
+    # Get the list of literals from the given clause
+    list_of_literals = list(clause.data.keys())
+
+    # Keep track of number of literals that evaluate to False
+    count = 0
+
+    # Loop through the lists and compare the literal in the clause
+    # with it's corresponding dictionary value
+    # Returns a dictionary of the literal and it's value within the clause
+    literal_and_assignment: dict = value_of_literal(clause, assignments)
+
+    # Count number of 0's assigned in the clause
+    # A clause is UNSAT if all literals are false.
+    for i in range(0, len(literal_and_assignment.keys())):
+        current_literal = list_of_literals[i]
+
+        # Count the amount of 0's in a given clause
+        if literal_and_assignment[current_literal] == NEG_LIT:
+            count += 1
+        
+        # Return 'SAT' if any literal is 1. This means the clause is SAT
+        elif literal_and_assignment[current_literal] == POS_LIT:
+            return 'SAT'
+
+    # If the amount of 0's counted in the given clause is equal to the number of
+    # literals in the given clause then we know that all literals are 0.
+    # This means the clause evaluates to False and is 'UNSAT'.
+    if count == len(list_of_literals):
+        return 'UNSAT'
+    
+    # If were here then clause must be UNDECIDED since no other condition is met
+    return 'UNDECIDED'
 
 
 def find_maximum_literal(clauses: list[Clause]) -> int:
@@ -244,6 +293,41 @@ def decide_literal(clauses: list[Clause], decisions: dict) -> int:
     undecided = [xi for xi, value in decisions.items() if value is None]
     # For now, just choose a random undecided variable.
     return random.choice(undecided)
+
+
+def value_of_literal(clause: Clause, assignments: dict) -> dict:
+    '''
+    Helper function to assign and get literal values of the current clause
+
+    Return a dictionary of literal and value pairs
+    '''
+    # Dictionary to hold the mapping of the literal to it's value
+    literal_and_assignment = dict()
+
+    # List of literals in clause
+    literals_list = list(clause.data.keys())
+
+    # Loop through the literals to assign the values of the literal appropriately
+    # Set the current_literal to the current index of the literal
+    for i in range(0, len(list(clause.data.keys()))):
+        current_literal = literals_list[i]
+
+        # If the literal is negative AND it's assigned as a 1,
+        # Assign the complement 0
+        if list(clause.data.values())[i] == NEG_LIT and assignments[current_literal] == POS_LIT:
+            literal_and_assignment[current_literal] = NEG_LIT
+
+        # If the literal is negative AND it's assigned as a 0,
+        # Assign the complement 1
+        elif list(clause.data.values())[i] == NEG_LIT and assignments[current_literal] == NEG_LIT:
+            literal_and_assignment[current_literal] = POS_LIT
+    
+        # If the literal is positive, keep the current assignment
+        else:
+            literal_and_assignment[current_literal] = assignments[current_literal]
+
+    # Return literal assignments
+    return literal_and_assignment
 
 
 def all_undecided(clauses:list[Clause]) -> dict[int,Any]:
@@ -269,7 +353,7 @@ def dpll(clauses:list[Clause]) -> dict[int,Any]:
     assignments = all_undecided(clauses)
     # But, assign the output literal/variable to be 1
     output_var_i = find_maximum_literal(clauses)
-    assignments[output_var_i ] = 1
+    assignments[output_var_i] = 1
     return dpll_rec(clauses, assignments)
 
 
@@ -358,19 +442,59 @@ def printAssignments(assignments: dict[int,Any]):
     print("\n".join([f"x{i}={v}" for i, v in assignments.items()]))
 
 
-sop_str = "x1.x3 + ~x1.x2"
-print('Parsing SOP input:', sop_str)
-sop = parse_SOP_string(sop_str)
-print('Parsed result:', str(sop))
-print('Converting to CNF, clauses are:')
-cnf = convert_SOP_to_CNF(sop)
-print(".".join([str(c) for c in cnf])) # print clause list
-n = max(cnf[-1].data.keys()) # quick and overly specific way to do this
-print(f"The output variable is x{n} and must be set to 1.")
+def test_clause_value():
+    '''
+    Test the caluse_value_given_assignments() function
+    '''
+    # test one positive literal (x1)
+    c = make_CNF_clause([1], [])
 
-result = dpll(cnf)
-if result:
-    print("Function is SAT with these assignments:")
-    printAssignments(result)
-else:
-    print("Function is UNSAT")
+    # postive literal is set to 1
+    v = clause_value_given_assignments(c, {1:1})
+    assert(v == 'SAT')
+
+    # Setting clause with only one literal to 0
+    v = clause_value_given_assignments(c, {1:0})
+    assert(v == 'UNSAT')
+
+    # The only literal is undecided
+    v = clause_value_given_assignments(c, {1:None})
+    assert(v == 'UNDECIDED')
+
+    # Test one negative literal (~x1)
+    c = make_CNF_clause([], [1])
+
+    # assign the literal to 1, which makes the clause false
+    v = clause_value_given_assignments(c, {1:1})
+    assert(v == 'UNSAT')
+
+    # assign the literal to 0, which makes the clause true
+    v = clause_value_given_assignments(c, {1:0})
+    assert(v == 'SAT')
+
+
+test_clause_value()
+def main():
+    with open(args.file, "r") as file:
+        function1 = file.readline()
+        if args.xor:
+            function2 = file.readlines()[1]
+        
+    print('Parsing SOP input:', function1)
+    sop = parse_SOP_string(function1)
+    print('Parsed result:', str(sop))
+    print('Converting to CNF, clauses are:')
+    cnf = convert_SOP_to_CNF(sop)
+    print(".".join([str(c) for c in cnf])) # print clause list
+    n = max(cnf[-1].data.keys()) # quick and overly specific way to do this
+    print(f"The output variable is x{n} and must be set to 1.")
+
+    result = dpll(cnf)
+    if result:
+        print("Function is SAT with these assignments:")
+        printAssignments(result)
+    else:
+        print("Function is UNSAT")
+
+if __name__ == "__main__":
+    main()
