@@ -289,11 +289,14 @@ def find_maximum_literal(clauses: list[Clause]) -> int:
     return max([max(clause.data.keys()) for clause in clauses])
 
 
-def decide_literal(clauses: list[Clause], decisions: dict) -> int:
+def decide_literal(clauses: list[Clause], decisions: dict) -> int|None:
     '''
     Choose an unassigned literal to try next.
+    Returns the index of the literal to try next, or None if there are no undecided literals.
     '''
     undecided = [xi for xi, value in decisions.items() if value is None]
+    if not undecided:
+        return None
     # For now, just choose a random undecided variable.
     return random.choice(undecided)
 
@@ -346,7 +349,11 @@ def all_undecided(clauses:list[Clause]) -> dict[int,Any]:
 
 
 # TODO: make a version of this function that uses a loop & stack instead of recursion!
-def dpll(clauses:list[Clause], assignments:dict|None=None) -> dict[int,Any]:
+def dpll(clauses:list[Clause], assignments:dict[int,Any]|None=None) -> dict[int,Any]:
+    return dpll_with_stack(clauses)
+
+
+def dpll_rec(clauses: list[Clause], assignments: dict[int,Any]|None=None) -> dict[int,Any]:
     '''
     The recursive function implementation for dpll().
     Takes in a list of CNF clauses and a dictionary of decisions.
@@ -378,7 +385,11 @@ def dpll(clauses:list[Clause], assignments:dict|None=None) -> dict[int,Any]:
     # At this point, at least one of the clauses is undecided.
     # Choose a literal to try to assign to 1 or to 0...
     # And try those options out by branching recursively.
-    xi: int = decide_literal(clauses, assignments)
+    xi: int|None = decide_literal(clauses, assignments)
+    if not xi:
+        # There are no undecided literals, so we can't make any more decisions.
+        # This means that the function is UNSAT.
+        return {}
     assert(assignments[xi] is None)
     # Try xi=1
     assignments[xi] = 1
@@ -394,6 +405,59 @@ def dpll(clauses:list[Clause], assignments:dict|None=None) -> dict[int,Any]:
     # So return UNSAT to the callee (probably the previous recursive call).
     assignments[xi] = None # undo the decision
     return {} # UNSAT
+
+
+def dpll_with_stack(clauses: list[Clause]):# -> dict[int,Any]:
+    print('Calling dpll_with_stack...')
+    print('clauses are ', clauses)
+    assignments = all_undecided(clauses)
+
+    # Push some initial decisions onto the stack
+    stack = []
+    xi = decide_literal(clauses, assignments)
+    if not xi:
+        return {}
+    stack.append(('try', xi, 0))
+    stack.append(('try', xi, 1))
+
+    while stack:
+        print('stack:', stack)
+        (action, xi, value) = stack.pop()
+        print(action, "xi:", xi, "value:", value)
+        assignments[xi] = value
+        if action == "restore":
+            # Undo the value for xi
+            continue
+        stack.append(('restore', xi, assignments[xi]))
+        anyUndecidedClause: bool = False
+        for clause in clauses:
+            value = clause_value(clause, assignments)
+            if value == UNSAT:
+                # If any clause is UNSAT, then the whole function is UNSAT.
+                # This branch is UNSAT, so we should backtrack and try the other value for xi.
+                print('UNSAT branch')
+                continue
+            elif value == UNDECIDED:
+                # We only need to see that one clause is undecided to know if any are undecided.
+                print('found undecided clause')
+                anyUndecidedClause = True
+        if anyUndecidedClause:
+            new_xi = decide_literal(clauses, assignments)
+            if not new_xi:
+                # There are no undecided literals, so we can't make any more decisions.
+                print('UNSAT due to no undecided literals')
+                continue
+            stack.append(('try', new_xi, 0))
+            stack.append(('try', new_xi, 1))
+        else:
+            # If no clauses are UNSAT and no clauses are undecided,
+            # then all clauses are SAT and the whole function is SAT!
+            print('returning SAT')
+            return assignments # SAT
+
+    # If this point is reached, UNSAT
+    print('returning UNSAT')
+    return {}
 
 
 def make_blocking_clause(assignments: dict[int,Any]) -> Clause:
@@ -437,7 +501,7 @@ def printAssignments(assignments: dict[int,Any]):
 
 def test_clause_value():
     '''
-    Test the caluse_value_given_assignments() function
+    Test the clause_value() function
     '''
     # test one positive literal (x1)
     c = make_CNF_clause([1], [])
