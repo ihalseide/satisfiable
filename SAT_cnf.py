@@ -793,7 +793,7 @@ def main():
     with open(args.file, "r") as file:
         function1 = file.readline()
         if args.xor:
-            function2 = file.readlines()[1]
+            function2 = file.readlines()[0]
         
     print('Parsing SOP input:', function1)
     sop = parse_SOP_string(function1)
