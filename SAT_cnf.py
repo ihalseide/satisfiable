@@ -242,7 +242,7 @@ def clause_value_given_assignments(clause: Clause, assignments: dict):
     # Loop through the lists and compare the literal in the clause
     # with it's corresponding dictionary value
     # Returns a dictionary of the literal and it's value within the clause
-    literal_and_assignment: dict = value_of_literal(list_of_literals, assignments)
+    literal_and_assignment: dict = value_of_literal(clause, assignments)
 
     # Count number of 0's assigned in the clause
     # A clause is UNSAT if all literals are false.
@@ -270,7 +270,7 @@ def clause_value_given_assignments(clause: Clause, assignments: dict):
     # If the amount of 'None' counted in the given clause is equal to the number of
     # literals in the given clause OR is less than the number of literals in the given cause
     # this means the clause evaluates to 'UNDECIDED'.
-    if count_undecided < len(list_of_literals) or count_undecided == len(list_of_literals):
+    if count_undecided != 0:
         return 'UNDECIDED'
     
 
@@ -292,25 +292,38 @@ def decide_literal(clauses: list[Clause], decisions: dict) -> int:
     # For now, just choose a random undecided variable.
     return random.choice(undecided)
 
-def value_of_literal(list_of_literal: list[Any], assignments: dict):
+def value_of_literal(clause: Clause, assignments: dict):
     '''
-    Helper function to get value of current literal
-    Function to return a dictionary of literal and value pairs
+    Helper function to assign and get literal values of current clause
+    Function will return a dictionary of literal and value pairs
     '''
+    # Dictionary to hold the mapping of the literal to it's value
+    literal_and_assignment = dict()
 
-    tmp = dict()
-    # List the keys of the assignment dictionary. These translate to the literal
-    assignment_keys = list(assignments.keys())
-    assignment_values = list(assignments.values())
+    # List of literals in clause
+    literals_list = list(clause.data.keys())
 
-    # Loop through the list of literals passed in.
+    # Loop through the literals to assign the values of the literal appropriately
     # Set the current_literal to the current index of the literal
-    for i in range(0, len(list_of_literal)):
-        current_literal = list_of_literal[i]
-        for j in range(0, len(assignment_keys)):
-            if current_literal == assignment_keys[j]:
-                tmp[current_literal] = assignment_values[j]
-    return tmp
+    for i in range(0, len(list(clause.data.keys()))):
+        current_literal = literals_list[i]
+
+        # If the literal is negative AND it's assigned as a 1,
+        # Assign the complement 0
+        if list(clause.data.values())[i] == NEG_LIT and assignments[current_literal] == POS_LIT:
+            literal_and_assignment[current_literal] = NEG_LIT
+
+        # If the literal is negative AND it's assigned as a 0,
+        # Assign the complement 1
+        elif list(clause.data.values())[i] == NEG_LIT and assignments[current_literal] == NEG_LIT:
+            literal_and_assignment[current_literal] = POS_LIT
+    
+        # If the literal is positive, keep the current assignment
+        else:
+            literal_and_assignment[current_literal] = assignments[current_literal]
+
+    # Return literal assignments
+    return literal_and_assignment
 
 
 
@@ -434,7 +447,7 @@ def test_clause_value():
 
     # postive literal is set to 1
     v = clause_value_given_assignments(c, {1:1})
-    assert(v != 'SAT')
+    assert(v == 'SAT')
 
     # Setting clause with only one literal to 0
     v = clause_value_given_assignments(c, {1:0})
