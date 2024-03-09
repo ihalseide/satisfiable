@@ -2,7 +2,6 @@ import re
 from typing import Any
 import random
 import argparse
-from itertools import islice
 
 # Two defined values for literals (the polarity)
 POS_LIT = 1 # positive literal, like x1
@@ -475,7 +474,10 @@ def main():
     with open(args.file, "r") as file:
         function1 = file.readline()
         if args.xor:
-            function2 = file.readlines()[1]
+            function2 = file.readlines()[0]
+
+    print("function 1 is {}".format(function1))
+    print("function 2 is {}".format(function2))
         
     print('Parsing SOP input:', function1)
     sop = parse_SOP_string(function1)
