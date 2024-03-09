@@ -260,7 +260,7 @@ def clause_value_given_assignments(clause: Clause, assignments: dict) -> str:
 
     # Count number of 0's assigned in the clause
     # A clause is UNSAT if all literals are false.
-    for lit_i, val in literal_and_assignment.items():
+    for val in literal_and_assignment.values():
 
         # Count the amount of 0's in a given clause
         if val == NEG_LIT:
