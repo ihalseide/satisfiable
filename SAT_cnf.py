@@ -307,22 +307,18 @@ def value_of_literal(clause: Clause, assignments: dict) -> dict:
     # Dictionary to hold the mapping of the literal to it's value
     literal_and_assignment = dict()
 
-    # List of literals in clause
-    literals_list = list(clause.data.keys())
-
     # Loop through the literals to assign the values of the literal appropriately
     # Set the current_literal to the current index of the literal
-    for i in range(0, len(list(clause.data.keys()))):
-        current_literal = literals_list[i]
+    for current_literal, val in clause.data.items():
 
         # If the literal is negative AND it's assigned as a 1,
         # Assign the complement 0
-        if list(clause.data.values())[i] == NEG_LIT and assignments[current_literal] == POS_LIT:
+        if val == NEG_LIT and assignments[current_literal] == POS_LIT:
             literal_and_assignment[current_literal] = NEG_LIT
 
         # If the literal is negative AND it's assigned as a 0,
         # Assign the complement 1
-        elif list(clause.data.values())[i] == NEG_LIT and assignments[current_literal] == NEG_LIT:
+        elif val == NEG_LIT and assignments[current_literal] == NEG_LIT:
             literal_and_assignment[current_literal] = POS_LIT
     
         # If the literal is positive, keep the current assignment
