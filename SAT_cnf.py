@@ -256,11 +256,11 @@ def clause_value_given_assignments(clause: Clause, assignments: dict) -> str:
     # Loop through the lists and compare the literal in the clause
     # with it's corresponding dictionary value
     # Returns a dictionary of the literal and it's value within the clause
-    literal_and_assignment: dict = value_of_literal(clause, assignments)
+    literals_and_assignments: dict = values_of_literals(clause, assignments)
 
     # Count number of 0's assigned in the clause
     # A clause is UNSAT if all literals are false.
-    for val in literal_and_assignment.values():
+    for val in literals_and_assignments.values():
 
         # Count the amount of 0's in a given clause
         if val == NEG_LIT:
@@ -298,7 +298,7 @@ def decide_literal(clauses: list[Clause], decisions: dict) -> int:
     return random.choice(undecided)
 
 
-def value_of_literal(clause: Clause, assignments: dict) -> dict:
+def values_of_literals(clause: Clause, assignments: dict) -> dict:
     '''
     Helper function to assign and get literal values of the current clause
 
