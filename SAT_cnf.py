@@ -236,7 +236,7 @@ def add_or_GCF(toList: list[Clause], or_input_vars, output_var: int):
     toList.append(make_CNF_clause(ones=list(or_input_vars), zeros=[output_var]))
 
 
-def clause_value_given_assignments(clause: Clause, assignments: dict) -> str:
+def clause_value(clause: Clause, assignments: dict) -> str:
     '''
     Function to determine if clause is UNSAT or UNDECIDED.
     A clause is SAT if at least ONE literal evaluates to True
@@ -363,7 +363,7 @@ def dpll(clauses:list[Clause], assignments:dict|None=None) -> dict[int,Any]:
         return assignments # SAT
     anyUndecidedClause: bool = False
     for clause in clauses:
-        value = clause_value_given_assignments(clause, assignments)
+        value = clause_value(clause, assignments)
         if value == UNSAT:
             # If any clause is UNSAT, then the whole function is UNSAT.
             return {} # UNSAT
@@ -443,30 +443,30 @@ def test_clause_value():
     c = make_CNF_clause([1], [])
 
     # postive literal is set to 1
-    v = clause_value_given_assignments(c, {1:1})
+    v = clause_value(c, {1:1})
     assert(v == SAT)
 
     # Setting clause with only one literal to 0
-    v = clause_value_given_assignments(c, {1:0})
+    v = clause_value(c, {1:0})
     assert(v == UNSAT)
 
     # The only literal is undecided
-    v = clause_value_given_assignments(c, {1:None})
+    v = clause_value(c, {1:None})
     assert(v == UNDECIDED)
 
     # Test one negative literal (~x1)
     c = make_CNF_clause([], [1])
 
     # assign the literal to 1, which makes the clause false
-    v = clause_value_given_assignments(c, {1:1})
+    v = clause_value(c, {1:1})
     assert(v == UNSAT)
 
     # assign the literal to 0, which makes the clause true
-    v = clause_value_given_assignments(c, {1:0})
+    v = clause_value(c, {1:0})
     assert(v == SAT)
 
     # The only literal is undecided
-    v = clause_value_given_assignments(c, {1:None})
+    v = clause_value(c, {1:None})
     assert(v == UNDECIDED)
 
     # Test a clause with 2 literals
@@ -483,7 +483,7 @@ def test_clause_value():
         ({1:None, 2:1}, SAT),
     ]
     for assignment, expected in testPairs2:
-        v = clause_value_given_assignments(c, assignment)
+        v = clause_value(c, assignment)
         try:
             assert(v == expected)
         except AssertionError:
@@ -507,7 +507,7 @@ def test_clause_value():
         ({1:None, 2:0, 3:None}, UNDECIDED),
     ]
     for assignment, expected in testPairs3:
-        v = clause_value_given_assignments(c, assignment)
+        v = clause_value(c, assignment)
         try:
             assert(v == expected)
         except AssertionError:
