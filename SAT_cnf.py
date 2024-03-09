@@ -172,7 +172,7 @@ def convert_SOP_to_CNF(productTerms: list[Clause]) -> list[Clause]:
     return CNF
 
 
-def add_and_GCF(toList: list[Clause], term: dict[int, Any], term_out_var_i: int):
+def add_and_GCF(toList: list[Clause], term: dict[int, int|None], term_out_var_i: int):
     '''
     Helper function for convert_SOP_to_CNF().
     (GCF stands for Gate Consistency Function.)
