@@ -254,7 +254,7 @@ def clause_value_given_assignments(clause: Clause, assignments: dict):
         elif literal_and_assignment[current_literal] == None:
             count_undecided += 1
         elif literal_and_assignment[current_literal] == POS_LIT:
-            return True
+            return 'SAT'
 
     # If the amount of 0's counted in the given clause is equal to the number of
     # literals in the given clause then we know that all literals are 0.
