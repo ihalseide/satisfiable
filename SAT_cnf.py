@@ -248,19 +248,28 @@ def clause_value_given_assignments(clause: Clause, assignments: dict):
     # A clause is UNSAT if all literals are false.
     for i in range(0, len(literal_and_assignment.keys())):
         current_literal = list_of_literals[i]
+
+        # Count the amount of 0's in a given clause
         if literal_and_assignment[current_literal] == NEG_LIT:
             count += 1
-        # If any literal in a clause is UNDECIDED, then the clause itself is UNDECIDED
+
+        # Count the amount of undecided literals in a given clause
         elif literal_and_assignment[current_literal] == None:
             count_undecided += 1
+        
+        # Return 'SAT' if any literal is 1. This means the clause is SAT
         elif literal_and_assignment[current_literal] == POS_LIT:
             return 'SAT'
 
     # If the amount of 0's counted in the given clause is equal to the number of
     # literals in the given clause then we know that all literals are 0.
-    # This means the clause evaluates to False and is UNSAT.
+    # This means the clause evaluates to False and is 'UNSAT'.
     if count == len(list_of_literals):
         return 'UNSAT'
+    
+    # If the amount of 'None' counted in the given clause is equal to the number of
+    # literals in the given clause OR is less than the number of literals in the given cause
+    # this means the clause evaluates to 'UNDECIDED'.
     if count_undecided < len(list_of_literals) or count_undecided == len(list_of_literals):
         return 'UNDECIDED'
     
