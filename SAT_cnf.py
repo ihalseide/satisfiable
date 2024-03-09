@@ -294,6 +294,7 @@ def decide_literal(clauses: list[Clause], decisions: dict) -> int|None:
     Choose an unassigned literal to try next.
     Returns the index of the literal to try next, or None if there are no undecided literals.
     '''
+    # NOTE: this doesn't use the clauses at all (yet), but it could be modified to use them.
     undecided = [xi for xi, value in decisions.items() if value is None]
     if not undecided:
         return None
@@ -354,6 +355,8 @@ def dpll_rec(clauses: list[Clause], assignments: dict[int,Any]|None=None) -> dic
     Takes in a list of CNF clauses and a dictionary of decisions.
     Returns: the assignments for literals that make the SAT problem true,
     which is an empty dictionary if the function is UNSAT.
+
+    NOTE: DON'T remove this function because it is useful for validating the iterative version !!!
     '''
     if not assignments:
         assignments = all_undecided(clauses)
@@ -410,7 +413,8 @@ def dpll_iterative(clauses: list[Clause]) -> dict[int,Any]:
     assignments2 = assignments1.copy()
     starting_xi = decide_literal(clauses, assignments1)
     if starting_xi is None:
-        # No clauses, so return no assignments
+        # It's not possible to make any decisions/assignments, so return empty dictionary,
+        # which is considered UNSAT.
         return {}
     assignments1[starting_xi] = 1
     assignments2[starting_xi] = 0
