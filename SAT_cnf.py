@@ -416,6 +416,39 @@ def printAssignments(assignments: dict[int,Any]):
     print("\n".join([f"x{i}={v}" for i, v in assignments.items()]))
 
 
+def test_clause_value():
+    '''
+    Test the caluse_value_given_assignments() function
+    '''
+    # test one positive literal (x1)
+    c = make_CNF_clause([1], [])
+
+    # postive literal is set to 1
+    v = clause_value_given_assignments(c, {1:1})
+    assert(v != 'SAT')
+
+    # Setting clause with only one literal to 0
+    v = clause_value_given_assignments(c, {1:0})
+    assert(v == 'UNSAT')
+
+    # The only literal is undecided
+    v = clause_value_given_assignments(c, {1:None})
+    assert(v == 'UNDECIDED')
+
+    # Test one negative literal (~x1)
+    c = make_CNF_clause([], [1])
+
+    # assign the literal to 1, which makes the clause false
+    v = clause_value_given_assignments(c, {1:1})
+    assert(v == 'UNSAT')
+
+    # assign the literal to 0, which makes the clause true
+    v = clause_value_given_assignments(c, {1:0})
+    assert(v == 'SAT')
+
+
+test_clause_value()
+
 sop_str = "x1.x3 + ~x1.x2 + ~x3.x4"
 print('Parsing SOP input:', sop_str)
 sop = parse_SOP_string(sop_str)
