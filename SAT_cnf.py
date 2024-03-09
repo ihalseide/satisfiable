@@ -235,6 +235,9 @@ def clause_value_given_assignments(clause: Clause, assignments: dict):
 
     # Keep track of number of literals that evaluate to False
     count = 0
+    
+    # Keep track of number of literals that are undecided
+    count_undecided = 0
 
     # Loop through the lists and compare the literal in the clause
     # with it's corresponding dictionary value
@@ -249,13 +252,18 @@ def clause_value_given_assignments(clause: Clause, assignments: dict):
             count += 1
         # If any literal in a clause is UNDECIDED, then the clause itself is UNDECIDED
         elif literal_and_assignment[current_literal] == None:
-            return 'UNDECIDED'
+            count_undecided += 1
+        elif literal_and_assignment[current_literal] == POS_LIT:
+            return True
 
     # If the amount of 0's counted in the given clause is equal to the number of
     # literals in the given clause then we know that all literals are 0.
     # This means the clause evaluates to False and is UNSAT.
     if count == len(list_of_literals):
         return 'UNSAT'
+    if count_undecided < len(list_of_literals) or count_undecided == len(list_of_literals):
+        return 'UNDECIDED'
+    
 
 
 def find_maximum_literal(clauses: list[Clause]) -> int:
