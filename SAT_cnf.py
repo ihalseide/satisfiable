@@ -1,11 +1,19 @@
 import re
 from typing import Any
 import random
-
+import argparse
+from itertools import islice
 
 # Two defined values for literals (the polarity)
 POS_LIT = 1 # positive literal, like x1
 NEG_LIT = 0 # negative literal, like ~x1
+
+
+parser = argparse.ArgumentParser(description='Provide path to file with boolean function to check for SAT or UNSAT.\nFile must contain at least one function and no more than two.\nFunctions MUST be in SoP form.\nIf two functions are in file, pass in [-x, --xor] flag to find SAT on two functions.')
+parser.add_argument('-f', '--file', type=str, help='Enter the abolute path to a file', required=True)
+parser.add_argument('-x', '--xor', help='XOR two functions and return SAT or UNSAT', required=False, action='store_true')
+
+args = parser.parse_args()
 
 
 class Clause:
@@ -265,7 +273,6 @@ def clause_value_given_assignments(clause: Clause, assignments: dict):
     
     # If were here then clause must be UNDECIDED since no other condition is met
     return 'UNDECIDED'
-    
 
 
 def find_maximum_literal(clauses: list[Clause]) -> int:
@@ -284,6 +291,7 @@ def decide_literal(clauses: list[Clause], decisions: dict) -> int:
     undecided = [xi for xi, value in decisions.items() if value is None]
     # For now, just choose a random undecided variable.
     return random.choice(undecided)
+
 
 def value_of_literal(clause: Clause, assignments: dict):
     '''
@@ -318,7 +326,6 @@ def value_of_literal(clause: Clause, assignments: dict):
 
     # Return literal assignments
     return literal_and_assignment
-
 
 
 def all_undecided(clauses:list[Clause]) -> dict[int,Any]:
@@ -464,20 +471,27 @@ def test_clause_value():
 
 
 test_clause_value()
+def main():
+    with open(args.file, "r") as file:
+        function1 = file.readline()
+        if args.xor:
+            function2 = file.readlines()[1]
+        
+    print('Parsing SOP input:', function1)
+    sop = parse_SOP_string(function1)
+    print('Parsed result:', str(sop))
+    print('Converting to CNF, clauses are:')
+    cnf = convert_SOP_to_CNF(sop)
+    print(".".join([str(c) for c in cnf])) # print clause list
+    n = max(cnf[-1].data.keys()) # quick and overly specific way to do this
+    print(f"The output variable is x{n} and must be set to 1.")
 
-sop_str = "x1.x3 + ~x1.x2 + ~x3.x4"
-print('Parsing SOP input:', sop_str)
-sop = parse_SOP_string(sop_str)
-print('Parsed result:', str(sop))
-print('Converting to CNF, clauses are:')
-cnf = convert_SOP_to_CNF(sop)
-print(".".join([str(c) for c in cnf])) # print clause list
-n = max(cnf[-1].data.keys()) # quick and overly specific way to do this
-print(f"The output variable is x{n} and must be set to 1.")
+    result = dpll(cnf)
+    if result:
+        print("Function is SAT with these assignments:")
+        printAssignments(result)
+    else:
+        print("Function is UNSAT")
 
-result = dpll(cnf)
-if result:
-    print("Function is SAT with these assignments:")
-    printAssignments(result)
-else:
-    print("Function is UNSAT")
+if __name__ == "__main__":
+    main()
