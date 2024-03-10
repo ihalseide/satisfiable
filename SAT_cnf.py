@@ -17,8 +17,6 @@ UNDECIDED = 'UNDECIDED'
 parser = argparse.ArgumentParser(description='Provide path to file with boolean function to check for SAT or UNSAT.\nFile must contain at least one function and no more than two.\nFunctions MUST be in SoP form.\nIf two functions are in file, pass in [-x, --xor] flag to find SAT on two functions.')
 parser.add_argument('-f', '--file', type=str, help='Enter the abolute path to a file', required=False)
 parser.add_argument('-x', '--xor', help='XOR two functions and return SAT or UNSAT', required=False, action='store_true')
-
-# Izak's temporary solution to supply a DIMACS file to the program
 parser.add_argument('-d', '--dimacs', required=False, help="DIMACS file to parse instead of a function in POS form")
 
 class Clause:
