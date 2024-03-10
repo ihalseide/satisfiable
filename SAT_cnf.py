@@ -58,6 +58,77 @@ class Clause:
         return self.__str__()
 
 
+class ClauseList:
+    '''
+    Class to track:
+        The list of clauses in a given function.
+        The last variable index from SOP form.
+        The maximum variable index from CNF.
+    '''
+    def __init__(self, sop_input: str):
+        # Store SOP clauses in this member
+        self.sop_clauses = parse_SOP_string(sop_input)
+        # Store CNF clauses in this member
+        self.cnf_clauses = convert_SOP_to_CNF(self.sop_clauses)
+        # Store the max variable from the SOP function input in this member
+        self.input_max = find_maximum_literal(self.sop_clauses)
+
+        # Keep a count of the index where the max input variable 
+        # in SoP form is and store in this member
+        self.max_index_sop = 0
+        for i in self.sop_clauses:
+            # Get the max variable index in the list of keys from the clause
+            if max(list(i.data.keys())) == self.input_max:
+                break
+            else:
+                self.max_index_sop += 1
+
+        # Store the CNF output variable index in this member
+        self.max_cnf_index = len(self.cnf_clauses) - 1
+
+        
+    
+    # def max_var_index_sop(self):
+    #     '''
+    #     Return the index of the max variable location in SOP form
+    #     '''
+        
+    #     # Keep a count of the index
+    #     i = 0
+    #     for j in self.sop_clauses:
+    #         # Get the max variable index in the list of keys from the clause
+    #         if max(list(j.data.keys())) == self.max:
+    #             return i
+    #         else:
+    #             i += 1
+    
+    # def max_var_index_CNF(self):
+    #     '''
+    #     Return the index of the output variable from CNF form
+    #     '''    
+    #     return len(convert_SOP_to_CNF(self.sop_clauses)) - 1
+    
+    # def max_var_input_index_CNF(self):
+    #     '''
+    #     Return the index of the max variable input in SoP form from the CNF clauses
+    #     Only returns the FIRST instance.
+    #     Considering if we need a list of indexes where the max variable exists
+    #     '''
+
+    #     # Keep a count of the index
+    #     i = 0
+    #     clauses = convert_SOP_to_CNF(self.sop_clauses)
+    #     for clause in clauses:
+    #         tmp = list(clause.data.keys())
+    #         for j in range(len(tmp)):
+    #             if tmp[j] == self.max:
+    #                 return i
+    #         i += 1
+        
+    def printClauseList(self):
+        print(self.sop_clauses)
+        
+
 def make_CNF_clause(ones: set[int]|list[int], zeros: set[int]|list[int], number=0) -> Clause:
     '''
     Create a Clause given:
@@ -773,9 +844,12 @@ def main():
     with open(args.file, "r") as file:
         function1 = file.readline()
         if args.xor:
-            function2 = file.readlines()[1]
-        
+            function2 = file.readlines()[0]
+    
+    a = ClauseList(function1)
+    print(a.max_index_sop)
     print('Parsing SOP input:', function1)
+    
     sop = parse_SOP_string(function1)
     print('Parsed result:', '+'.join([x.__str__(isCNF=False) for x in sop]))
     print('Converting to CNF, clauses are:')
@@ -784,7 +858,7 @@ def main():
 
     if print_DIMACS:
         print('--- BEGIN DIMACS FORMAT')
-        print_clauses_as_DIMACS(cnf)
+        #print_clauses_as_DIMACS(cnf)
         print('--- END DIMACS FORMAT')
 
     result = find_and_print_all_SAT(cnf)
