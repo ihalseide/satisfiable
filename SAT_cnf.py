@@ -566,6 +566,21 @@ def find_and_print_all_SAT(clauses: list[Clause]) -> list[dict[int,None]]:
         clauses.append(make_blocking_clause(solution))
     return solutions
 
+def literal_in_both_clauses(clauses: list[Clause], length_1: int, length_2: int):
+    for i in range(len(clauses) - length_2):
+        for clause in clauses:
+            list_of_literals1 = list(clauses[i].data.keys())
+            list_of_values1 = list(clauses[i].data.values())
+            list_of_literals2 = list(clauses[i + length_1].data.keys())
+            list_of_values2 = list(clauses[i + length_1].data.values())
+            for j in range(len(list_of_literals1)):
+                for k in range(len(list_of_literals2)):
+                    if list_of_literals1[j] == list_of_literals2[k] and list_of_values1[j] == list_of_values2[k]:
+                        clauses[i].data[None] = clauses[i].data[list_of_literals1[j]]
+                        clauses[i].data[None] = clauses[i].data[list_of_literals1[j + k - len(list_of_literals1)]]
+
+        
+
 
 def boolean_functions_are_equivalent(clauses1: list[Clause], clauses2: list[Clause]) -> bool:
     '''
@@ -574,10 +589,13 @@ def boolean_functions_are_equivalent(clauses1: list[Clause], clauses2: list[Clau
     '''
     # XOR the two sets of clauses together,
     # Using gate consistency functions for AND and OR to implement (a^b) as (~a.b + a.~b).
+    clauses_inclauses1 = len(clauses1)
+    clauses_inclauses2 = len(clauses2)
+    new_list: list[Clause] = clauses1 + clauses2
+    literal_in_both_clauses(new_list, clauses_inclauses1, clauses_inclauses2)
+    print(new_list[1].data.keys())
 
-    
-
-    assert(False) # not implemented yet
+    #assert(False) # not implemented yet
 
 
 def printAssignments(assignments: dict[int,Any]):
@@ -848,9 +866,12 @@ def main():
         function1 = file.readline()
         if args.xor:
             function2 = file.readlines()[0]
+            a = parse_SOP_string(function1)
+            b = parse_SOP_string(function2)
+            boolean_functions_are_equivalent(convert_SOP_to_CNF(a), convert_SOP_to_CNF(b))
     
-    a = ClauseList(function1)
-    print(a.max_index_sop)
+    #a = ClauseList(function1)
+    #print(a.max_index_sop)
     print('Parsing SOP input:', function1)
     
     sop = parse_SOP_string(function1)
