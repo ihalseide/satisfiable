@@ -66,13 +66,47 @@ class ClauseList:
         The maximum variable index from CNF.
     '''
     def __init__(self, sop_input: str):
+        # Store SOP clauses in this member
         self.sop_clauses = parse_SOP_string(sop_input)
+        # Store the max variable from the SOP function input in this member
+        self.max = max([max(clause.data.keys()) for clause in self.sop_clauses])
     
-    def last_var_index_sop(self):
-        return len(self.sop_clauses) - 1
+    def max_var_index_sop(self):
+        '''
+        Return the index of the max variable location in SOP form
+        '''
+        
+        # Keep a count of the index
+        i = 0
+        for j in self.sop_clauses:
+            # Get the max variable index in the list of keys from the clause
+            if max(list(j.data.keys())) == self.max:
+                return i
+            else:
+                i += 1
     
     def max_var_index_CNF(self):
+        '''
+        Return the index of the output variable from CNF form
+        '''    
         return len(convert_SOP_to_CNF(self.sop_clauses)) - 1
+    
+    def max_var_input_index_CNF(self):
+        '''
+        Return the index of the max variable input in SoP form from the CNF clauses
+        Only returns the FIRST instance.
+        Considering if we need a list of indexes where the max variable exists
+        '''
+
+        # Keep a count of the index
+        i = 0
+        clauses = convert_SOP_to_CNF(self.sop_clauses)
+        for clause in clauses:
+            tmp = list(clause.data.keys())
+            for j in range(len(tmp)):
+                if tmp[j] == self.max:
+                    return i
+            i += 1
         
     def printClauseList(self):
         print(self.sop_clauses)
@@ -523,6 +557,9 @@ def boolean_functions_are_equivalent(clauses1: list[Clause], clauses2: list[Clau
     '''
     # XOR the two sets of clauses together,
     # Using gate consistency functions for AND and OR to implement (a^b) as (~a.b + a.~b).
+
+    
+
     assert(False) # not implemented yet
 
 
@@ -794,8 +831,11 @@ def main():
         function1 = file.readline()
         if args.xor:
             function2 = file.readlines()[0]
-        
+    
+    a = ClauseList(function1)
+    print(a.max_var_input_index_CNF())
     print('Parsing SOP input:', function1)
+    
     sop = parse_SOP_string(function1)
     print('Parsed result:', '+'.join([x.__str__(isCNF=False) for x in sop]))
     print('Converting to CNF, clauses are:')
