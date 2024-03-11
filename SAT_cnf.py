@@ -519,7 +519,7 @@ def make_blocking_clause(assignments: dict[int,Any]) -> Clause:
     return make_CNF_clause(pos, neg)
 
 
-def find_and_print_all_SAT(clauses: list[Clause]) -> list[dict[int,None]]:
+def find_all_SAT(clauses: list[Clause]) -> list[dict[int,None]]:
     '''
     Find all satisfying assignments for a boolean function in CNF.
     '''
@@ -527,8 +527,6 @@ def find_and_print_all_SAT(clauses: list[Clause]) -> list[dict[int,None]]:
     # Use the DPLL algorithm to find all solutions
     while (solution := dpll_iterative(clauses)):
         # Add the current solution to the list of solutions
-        #print('- Solution: ',end='')
-        #printAssignments(solution)
         solutions.append(solution)
         # Add a new clause to the CNF that blocks the current solution
         # (i.e. add a clause that makes the current solution UNSAT).
@@ -587,11 +585,12 @@ def boolean_functions_are_equivalent(clauses1: ClauseList, clauses2: ClauseList,
     # Using gate consistency functions for AND and OR to implement (a^b) as (~a.b + a.~b).
     clauses: list[Clause] = xor_CNF_functions(clauses1, clauses2)
 
+    # Print the list of clauses from XOR operation
     print(f"CNF clause from XOR functions: {clauses}")
-
     result = None
+    # Find all or one solution(s) for SAT
     if find_all:
-        result = find_and_print_all_SAT(clauses)
+        result = find_all_SAT(clauses)
     else:
         result = dpll_iterative(clauses)
     return result
@@ -943,7 +942,7 @@ def main():
             result = dpll_iterative(clauses)
         # Find all solutions for the given clauses
         elif args.all_dimacs:
-            result = find_and_print_all_SAT(clauses)
+            result = find_all_SAT(clauses)
         # Print all or one solution(s) from the result
         print_result(result, args.all_dimacs)
         return
@@ -957,7 +956,7 @@ def main():
             result = dpll_iterative(cnf)
         # Find all SAT solutions from given file for one function
         elif args.all_sop:
-            result = find_and_print_all_SAT(cnf)
+            result = find_all_SAT(cnf)
        # Print all or one solution(s) from the result
         print_result(result, args.all_sop)
         return
