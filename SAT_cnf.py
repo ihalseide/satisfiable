@@ -994,8 +994,8 @@ def main():
 
     # Print the DIMACS format of a given SoP function
     if args.file and args.print:
-        print('--- BEGIN DIMACS FORMAT')
         cnf = read_sop_file(args.file)
+        print('--- BEGIN DIMACS FORMAT')
         print_clauses_as_DIMACS(cnf)
         print('--- END DIMACS FORMAT')
         return
