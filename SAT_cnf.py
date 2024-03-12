@@ -2,6 +2,7 @@ import re
 from typing import Any
 import random
 import argparse
+from sys import stderr, argv, exit
 
 
 # Two defined values for literals (the polarity)
@@ -40,6 +41,8 @@ class Clause:
         # Maps variable index to -> whether it is a POSITIVE or NEGATIVE literal.
         # For example, a variable index of `1` means the boolean function input variable "x1"
         self.data: dict[int,Any] = data
+
+        self.isUnit = False
 
     def sortedVars(self):
         '''
@@ -319,7 +322,7 @@ def clause_value(clause: Clause, assignments: dict) -> str:
     return UNDECIDED
 
 
-def find_maximum_literal(clauses) -> int:
+def find_maximum_literal(clauses: list[Clause]) -> int:
     '''
     Find the maximum variable index in a list of CNF clauses.
     This is useful for knowing the upper limit of how many variables there are in a boolean function.
@@ -839,6 +842,7 @@ def read_DIMACS_file(file_path: str) -> list[Clause]:
     print(".".join([str(clauses[i]) for i in range(len(clauses))]))
     return clauses
 
+
 def read_sop_file(file_path: str) -> list[Clause]:
     '''
     Function to read the plain text SoP function.
@@ -863,7 +867,8 @@ def read_sop_file(file_path: str) -> list[Clause]:
         print('Converting to CNF, clauses are:')
         print(".".join([str(c) for c in cnf])) # print clause list
     return cnf
-    
+
+
 def read_sop_xor(file_path: str) -> tuple[ClauseList, ClauseList]:
     '''
     Function to read the plain text SoP functions. Should only be used for XOR operation
@@ -899,7 +904,8 @@ def read_sop_xor(file_path: str) -> tuple[ClauseList, ClauseList]:
         print('Converting to CNF for function 2, clauses are:')
         print(".".join([str(c) for c in cnf2.cnf_clauses]))
     return cnf1, cnf2
-    
+
+
 def print_result(result: list[dict[int,None]], all_sat: bool):
     '''
     Function to print the result SAT or UNSAT.
@@ -924,45 +930,59 @@ def print_result(result: list[dict[int,None]], all_sat: bool):
 
 def main():
     args = parser.parse_args()
-    
-    if not args.dimacs and not args.file:
+
+    if len(argv)==1 or args.print:
+        parser.print_help(stderr)
+        exit(1)
+        
+    if not args.file and not args.dimacs:
         # Run tests if no files were provided
         print('No file provided, Running tests...')
         test_SAT_cnf()
         return
-    
-    # If DIMACS formatted file was provided...
+
+        # If DIMACS formatted file was provided...
     if args.dimacs:
-        # Find one SAT solution from DIMACS format
-        # Parse DIMACS and call DPLL algorithm to find SAT or UNSAT
-        print('Parsing DIMACS file at:', args.dimacs)
-        clauses = read_DIMACS_file(args.dimacs)
         # Find one solution for the given clauses
-        if args.one_dimacs:
+        if args.one_dimacs:# Find one SAT solution from DIMACS format
+            # Parse DIMACS and call DPLL algorithm to find SAT or UNSAT
+            print('Parsing DIMACS file at:', args.dimacs)
+            clauses = read_DIMACS_file(args.dimacs)
             result = dpll_iterative(clauses)
         # Find all solutions for the given clauses
         elif args.all_dimacs:
+            # Parse DIMACS and call DPLL algorithm to find SAT or UNSAT
+            print('Parsing DIMACS file at:', args.dimacs)
+            clauses = read_DIMACS_file(args.dimacs)
             result = find_all_SAT(clauses)
+        else:
+            parser.print_help(stderr)
+            exit(1)
         # Print all or one solution(s) from the result
         print_result(result, args.all_dimacs)
         return
-
+    
     # If SoP formatted file was provided...
     if args.file and not args.xor and not args.print:
-        # Parse SoP and call DPLL algorithm to find SAT or UNSAT
-        cnf = read_sop_file(args.file)
         # Find one SAT solution from given file for one function
         if args.one_sop:
+            # Parse SoP and call DPLL algorithm to find SAT or UNSAT
+            cnf = read_sop_file(args.file)
             result = dpll_iterative(cnf)
         # Find all SAT solutions from given file for one function
         elif args.all_sop:
+            # Parse SoP and call DPLL algorithm to find SAT or UNSAT
+            cnf = read_sop_file(args.file)
             result = find_all_SAT(cnf)
-       # Print all or one solution(s) from the result
+        else:
+            parser.print_help(stderr)
+            exit(1)
+    # Print all or one solution(s) from the result
         print_result(result, args.all_sop)
         return
 
     # Find if two solutions are SAT by XOR
-    elif args.file and args.xor and not args.print:
+    if args.file and args.xor and not args.print:
         # Read both lines of file and return the CNF Clauses
         cnf1, cnf2 = read_sop_xor(args.file)
         # args.all_sop holds boolean if we want all or one result. 
@@ -971,9 +991,9 @@ def main():
         # Print all or one solution(s) from the result
         print_result(result, args.all_sop)
         return
-    
+
     # Print the DIMACS format of a given SoP function
-    elif args.file and args.print:
+    if args.file and args.print:
         print('--- BEGIN DIMACS FORMAT')
         cnf = read_sop_file(args.file)
         print_clauses_as_DIMACS(cnf)
