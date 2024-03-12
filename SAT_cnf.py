@@ -931,7 +931,7 @@ def print_result(result: list[dict[int,None]], all_sat: bool):
 def main():
     args = parser.parse_args()
 
-    if len(argv)==1 or args.print:
+    if len(argv) == 1:
         parser.print_help(stderr)
         exit(1)
         
