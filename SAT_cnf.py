@@ -311,6 +311,9 @@ def clause_value(clause: Clause, assignments: dict) -> str:
         # Return 'SAT' if any literal is 1. This means the clause is SAT
         elif val == POS_LIT:
             return SAT
+    
+    if countFalse == len(list_of_literals) - 1 and len(list_of_literals) > 1 or len(list_of_literals) == 1:
+        clause.isUnit = True
 
     # If the amount of 0's counted in the given clause is equal to the number of
     # literals in the given clause then we know that all literals are 0.
@@ -343,6 +346,41 @@ def decide_literal(clauses: list[Clause], decisions: dict) -> int|None:
     # For now, just choose a random undecided variable.
     return random.choice(undecided)
 
+def unit_propagate(clauses: list[Clause], assignments: dict[int, int|None]) -> dict[int, int|None]:
+    i = 0
+    polarity = None
+    while i < len(clauses):
+        if clauses[i].isUnit == True:
+            for lit, val in assignments.items():
+                if (val == None) and (lit in clauses[i].data):
+                    if clauses[i].data[lit] == POS_LIT and assignments[lit] == None:
+                        assignments[lit] = 1
+                        polarity = POS_LIT
+                    elif clauses[i].data[lit] == NEG_LIT and assignments[lit] == None:
+                        assignments[lit] = 0
+                        polarity ==  NEG_LIT
+                    elif len(list(clauses[i].data.keys())) == 1:
+                        if clauses[i].data[lit] == NEG_LIT:
+                            polarity = NEG_LIT
+                            assignments[lit] = 0
+                        elif clauses[i].data[lit] == POS_LIT:
+                            polarity = POS_LIT
+                            assignments[lit] = 1
+                    del clauses[i]
+                    for j in range(len(clauses)):
+                        if  (lit in clauses[j].data) and (polarity == NEG_LIT):
+                            for k, _ in clauses[j].data.items():
+                                if (k == lit) and (clauses[j].data[k] == POS_LIT):
+                                    del clauses[j].data[k]
+                                    break
+                        elif (lit in clauses[j].data) and (polarity == POS_LIT):
+                            for k, _ in clauses[j].data.items():
+                                if (k == lit) and (clauses[j].data[k] == NEG_LIT):
+                                    del clauses[j].data[k]
+                                    break
+                    break
+        i += 1
+    return assignments
 
 def values_of_literals(clause: Clause, assignments: dict) -> dict[int, int|None]:
     '''
@@ -390,6 +428,13 @@ def all_undecided(clauses:list[Clause]) -> dict[int, int|None]:
         assignments[i] = None
     return assignments
 
+def cleanup(clauses: list[Clause]) -> list[Clause]:
+    i = 0
+    while i != len(clauses):
+        if clauses[i].data == {}:
+            clauses.pop(i)
+        i += 1
+    return clauses
 
 def dpll_rec(clauses: list[Clause], assignments: dict[int,Any]|None=None) -> dict[int,int|None]:
     '''
@@ -400,6 +445,7 @@ def dpll_rec(clauses: list[Clause], assignments: dict[int,Any]|None=None) -> dic
 
     NOTE: DON'T remove this function because it is useful for validating the iterative version !!!
     '''
+    i = 0
     if not assignments:
         assignments = all_undecided(clauses)
     # Base cases:
@@ -417,6 +463,22 @@ def dpll_rec(clauses: list[Clause], assignments: dict[int,Any]|None=None) -> dic
         elif value == UNDECIDED:
             # We only need to see that one clause is undecided to know if any are undecided.
             anyUndecidedClause = True
+            if clause.isUnit == True:
+                assignments = unit_propagate(clauses, assignments)
+        elif value == SAT:
+            j = 0
+            for j in range(len(clauses)):
+                for key, val in clauses[j].data.items():
+                    if POS_LIT == assignments[key] and key in clauses[j].data:
+                        if clauses[j].data[key] == 0:
+                            del clauses[j].data[key]
+                            break
+                    elif NEG_LIT == assignments[key] and key in clauses[j].data:
+                        if clauses[j].data[key] == 1:
+                            del clauses[j].data[key]
+                            break
+            del clauses[i]
+        i += 1
     if not anyUndecidedClause:
         # If no clauses are UNSAT and no clauses are undecided,
         # then all clauses are SAT and the whole function is SAT!
@@ -433,17 +495,22 @@ def dpll_rec(clauses: list[Clause], assignments: dict[int,Any]|None=None) -> dic
     assert(assignments[xi] is None)
     # Try xi=1
     assignments[xi] = 1
+    assignments = unit_propagate(clauses, assignments)
+    clauses = cleanup(clauses)
     if (result := dpll_rec(clauses, assignments)):
         # SAT
         return result
     # Try xi=0
     assignments[xi] = 0
+    assignments = unit_propagate(clauses, assignments)
+    clauses = cleanup(clauses)
     if (result := dpll_rec(clauses, assignments)):
         # SAT
         return result
     # If both xi=1 and xi=0 failed, then this whole recursive branch is UNSAT.
     # So return UNSAT to the callee (probably the previous recursive call).
     assignments[xi] = None # undo the decision
+    assignments = unit_propagate(clauses, assignments)
     return {} # UNSAT
 
 
@@ -528,7 +595,7 @@ def find_all_SAT(clauses: list[Clause]) -> list[dict[int,None]]:
     '''
     solutions: list[dict[int,None]] = []
     # Use the DPLL algorithm to find all solutions
-    while (solution := dpll_iterative(clauses)):
+    while (solution := dpll_rec(clauses)):
         # Add the current solution to the list of solutions
         solutions.append(solution)
         # Add a new clause to the CNF that blocks the current solution
@@ -948,13 +1015,13 @@ def main():
             # Parse DIMACS and call DPLL algorithm to find SAT or UNSAT
             print('Parsing DIMACS file at:', args.dimacs)
             clauses = read_DIMACS_file(args.dimacs)
-            result = dpll_iterative(clauses)
+            result = dpll_rec(clauses)
         # Find all solutions for the given clauses
         elif args.all_dimacs:
             # Parse DIMACS and call DPLL algorithm to find SAT or UNSAT
             print('Parsing DIMACS file at:', args.dimacs)
             clauses = read_DIMACS_file(args.dimacs)
-            result = find_all_SAT(clauses)
+            result = dpll_rec(clauses)
         else:
             parser.print_help(stderr)
             exit(1)
@@ -968,7 +1035,7 @@ def main():
         if args.one_sop:
             # Parse SoP and call DPLL algorithm to find SAT or UNSAT
             cnf = read_sop_file(args.file)
-            result = dpll_iterative(cnf)
+            result = dpll_rec(cnf)
         # Find all SAT solutions from given file for one function
         elif args.all_sop:
             # Parse SoP and call DPLL algorithm to find SAT or UNSAT
