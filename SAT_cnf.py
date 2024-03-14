@@ -348,7 +348,7 @@ def decide_literal(clauses: list[Clause], decisions: dict) -> int|None:
 
 def unit_propagate(clauses: list[Clause], assignments: dict[int, int|None]) -> dict[int, int|None]:
     i = 0
-    polarity = None
+    polarity = 0
     while i < len(clauses):
         if clauses[i].isUnit == True:
             for lit, val in assignments.items():
@@ -359,14 +359,8 @@ def unit_propagate(clauses: list[Clause], assignments: dict[int, int|None]) -> d
                     elif clauses[i].data[lit] == NEG_LIT and assignments[lit] == None:
                         assignments[lit] = 0
                         polarity ==  NEG_LIT
-                    elif len(list(clauses[i].data.keys())) == 1:
-                        if clauses[i].data[lit] == NEG_LIT:
-                            polarity = NEG_LIT
-                            assignments[lit] = 0
-                        elif clauses[i].data[lit] == POS_LIT:
-                            polarity = POS_LIT
-                            assignments[lit] = 1
                     del clauses[i]
+                    i -= 1
                     for j in range(len(clauses)):
                         if  (lit in clauses[j].data) and (polarity == NEG_LIT):
                             for k, _ in clauses[j].data.items():
@@ -430,11 +424,25 @@ def all_undecided(clauses:list[Clause]) -> dict[int, int|None]:
 
 def cleanup(clauses: list[Clause]) -> list[Clause]:
     i = 0
-    while i != len(clauses):
+    while i < len(clauses):
         if clauses[i].data == {}:
             clauses.pop(i)
+            i -= 1
         i += 1
     return clauses
+
+def remove_sat_clause(clauses: list[Clause], index) -> list[Clause]:
+    for j in range(len(clauses)):
+        for key, val in clauses[j].data.items():
+            if POS_LIT == val and key in clauses[j].data:
+                if clauses[j].data[key] == 0:
+                    del clauses[j].data[key]
+                    break
+            elif NEG_LIT == val and key in clauses[j].data:
+                if clauses[j].data[key] == 1:
+                    del clauses[j].data[key]
+                    break
+    clauses.pop(j)
 
 def dpll_rec(clauses: list[Clause], assignments: dict[int,Any]|None=None) -> dict[int,int|None]:
     '''
@@ -466,18 +474,18 @@ def dpll_rec(clauses: list[Clause], assignments: dict[int,Any]|None=None) -> dic
             if clause.isUnit == True:
                 assignments = unit_propagate(clauses, assignments)
         elif value == SAT:
-            j = 0
             for j in range(len(clauses)):
-                for key, val in clauses[j].data.items():
-                    if POS_LIT == assignments[key] and key in clauses[j].data:
-                        if clauses[j].data[key] == 0:
-                            del clauses[j].data[key]
-                            break
-                    elif NEG_LIT == assignments[key] and key in clauses[j].data:
+                for key, val in assignments.items():
+                    if POS_LIT == val and key in clauses[j].data:
                         if clauses[j].data[key] == 1:
                             del clauses[j].data[key]
                             break
-            del clauses[i]
+                    elif NEG_LIT == val and key in clauses[j].data:
+                        if clauses[j].data[key] == 0:
+                            del clauses[j].data[key]
+                            break
+            clauses.pop(i)
+            i -= 1
         i += 1
     if not anyUndecidedClause:
         # If no clauses are UNSAT and no clauses are undecided,
@@ -487,6 +495,7 @@ def dpll_rec(clauses: list[Clause], assignments: dict[int,Any]|None=None) -> dic
     # At this point, at least one of the clauses is undecided.
     # Choose a literal to try to assign to 1 or to 0...
     # And try those options out by branching recursively.
+    clauses = cleanup(clauses)
     xi: int|None = decide_literal(clauses, assignments)
     if not xi:
         # There are no undecided literals, so we can't make any more decisions.
@@ -495,22 +504,18 @@ def dpll_rec(clauses: list[Clause], assignments: dict[int,Any]|None=None) -> dic
     assert(assignments[xi] is None)
     # Try xi=1
     assignments[xi] = 1
-    assignments = unit_propagate(clauses, assignments)
-    clauses = cleanup(clauses)
     if (result := dpll_rec(clauses, assignments)):
         # SAT
         return result
     # Try xi=0
-    assignments[xi] = 0
-    assignments = unit_propagate(clauses, assignments)
     clauses = cleanup(clauses)
+    assignments[xi] = 0
     if (result := dpll_rec(clauses, assignments)):
         # SAT
         return result
     # If both xi=1 and xi=0 failed, then this whole recursive branch is UNSAT.
     # So return UNSAT to the callee (probably the previous recursive call).
     assignments[xi] = None # undo the decision
-    assignments = unit_propagate(clauses, assignments)
     return {} # UNSAT
 
 
