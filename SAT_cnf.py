@@ -3,6 +3,7 @@ from typing import Any
 import random
 import argparse
 from sys import stderr, argv, exit
+from copy import deepcopy
 
 
 # Two defined values for literals (the polarity)
@@ -312,7 +313,12 @@ def clause_value(clause: Clause, assignments: dict) -> str:
         elif val == POS_LIT:
             return SAT
     
-    if countFalse == len(list_of_literals) - 1 and len(list_of_literals) > 1 or len(list_of_literals) == 1:
+    # Specific case for unit clauses:
+        # If the amount of 0's in a given clause 
+        # is equal to the number of literal in a clause minus 1,
+        # then one literal is unassigned, which makes it a unit clause
+        # If the clause has one literal that is unassigned, then it is a unit clause
+    if countFalse == len(list_of_literals) - 1:
         clause.isUnit = True
 
     # If the amount of 0's counted in the given clause is equal to the number of
@@ -347,33 +353,47 @@ def decide_literal(clauses: list[Clause], decisions: dict) -> int|None:
     return random.choice(undecided)
 
 def unit_propagate(clauses: list[Clause], assignments: dict[int, int|None]) -> dict[int, int|None]:
+    '''
+    Function for the unit propagation algorithm
+    Return the `assignments` of the clause after satisfying the unit clause
+    '''
+    
+    # Loop over entire list of clauses
     i = 0
     polarity = 0
     while i < len(clauses):
+        # If there is a unit clause in the list, assign 0 or 1 to the literal depending on the polarity
         if clauses[i].isUnit == True:
             for lit, val in assignments.items():
                 if (val == None) and (lit in clauses[i].data):
-                    if clauses[i].data[lit] == POS_LIT and assignments[lit] == None:
-                        assignments[lit] = 1
-                        polarity = POS_LIT
+                    if clauses[i].data[lit] == POS_LIT and assignments[lit] == None: 
+                        assignments[lit] = 1 # Only assigning the unassigned literal
+                        polarity = POS_LIT # Save the polarity of the literal to determine which complement to remove from the other clauses
                     elif clauses[i].data[lit] == NEG_LIT and assignments[lit] == None:
-                        assignments[lit] = 0
-                        polarity ==  NEG_LIT
-                    del clauses[i]
+                        assignments[lit] = 0 # Only assigning the unassigned literal
+                        polarity ==  NEG_LIT # Save the polarity of the literal to determine which complement to remove from the other clauses
+                    del clauses[i] # Remove the clause from the list now that it is SAT
                     i -= 1
+                    # Loop over list again to remove the complement of the literal from all clauses
                     for j in range(len(clauses)):
+                        # if the literal that just made the unit clause SAT is in this current clause and is ~xi
                         if  (lit in clauses[j].data) and (polarity == NEG_LIT):
                             for k, _ in clauses[j].data.items():
+                                # If literal is the complement of the literal that just made the unit clause SAT...
                                 if (k == lit) and (clauses[j].data[k] == POS_LIT):
-                                    del clauses[j].data[k]
-                                    break
+                                    del clauses[j].data[k] # Remove the complement literal
+                                    break # Removed complement. No need to iterate further in the clause
+                        # if the literal that just made the unit clause SAT is in this current clause and is xi
                         elif (lit in clauses[j].data) and (polarity == POS_LIT):
                             for k, _ in clauses[j].data.items():
+                                # If literal is the complement of the literal that just made the unit clause SAT...
                                 if (k == lit) and (clauses[j].data[k] == NEG_LIT):
-                                    del clauses[j].data[k]
-                                    break
+                                    del clauses[j].data[k] # Remove the complement literal
+                                    break # Removed complement. No need to iterate further in the clause
+                    # Removed clause. No need to further iterate
                     break
         i += 1
+    # Return the assignments
     return assignments
 
 def values_of_literals(clause: Clause, assignments: dict) -> dict[int, int|None]:
@@ -422,27 +442,6 @@ def all_undecided(clauses:list[Clause]) -> dict[int, int|None]:
         assignments[i] = None
     return assignments
 
-def cleanup(clauses: list[Clause]) -> list[Clause]:
-    i = 0
-    while i < len(clauses):
-        if clauses[i].data == {}:
-            clauses.pop(i)
-            i -= 1
-        i += 1
-    return clauses
-
-def remove_sat_clause(clauses: list[Clause], index) -> list[Clause]:
-    for j in range(len(clauses)):
-        for key, val in clauses[j].data.items():
-            if POS_LIT == val and key in clauses[j].data:
-                if clauses[j].data[key] == 0:
-                    del clauses[j].data[key]
-                    break
-            elif NEG_LIT == val and key in clauses[j].data:
-                if clauses[j].data[key] == 1:
-                    del clauses[j].data[key]
-                    break
-    clauses.pop(j)
 
 def dpll_rec(clauses: list[Clause], assignments: dict[int,Any]|None=None) -> dict[int,int|None]:
     '''
@@ -453,7 +452,7 @@ def dpll_rec(clauses: list[Clause], assignments: dict[int,Any]|None=None) -> dic
 
     NOTE: DON'T remove this function because it is useful for validating the iterative version !!!
     '''
-    i = 0
+    original_clause = deepcopy(clauses)
     if not assignments:
         assignments = all_undecided(clauses)
     # Base cases:
@@ -471,22 +470,8 @@ def dpll_rec(clauses: list[Clause], assignments: dict[int,Any]|None=None) -> dic
         elif value == UNDECIDED:
             # We only need to see that one clause is undecided to know if any are undecided.
             anyUndecidedClause = True
-            if clause.isUnit == True:
-                assignments = unit_propagate(clauses, assignments)
-        elif value == SAT:
-            for j in range(len(clauses)):
-                for key, val in assignments.items():
-                    if POS_LIT == val and key in clauses[j].data:
-                        if clauses[j].data[key] == 1:
-                            del clauses[j].data[key]
-                            break
-                    elif NEG_LIT == val and key in clauses[j].data:
-                        if clauses[j].data[key] == 0:
-                            del clauses[j].data[key]
-                            break
-            clauses.pop(i)
-            i -= 1
-        i += 1
+            # Call unit_propagate() to SAT any undecided clauses
+            assignments = unit_propagate(clauses, assignments)
     if not anyUndecidedClause:
         # If no clauses are UNSAT and no clauses are undecided,
         # then all clauses are SAT and the whole function is SAT!
@@ -495,7 +480,6 @@ def dpll_rec(clauses: list[Clause], assignments: dict[int,Any]|None=None) -> dic
     # At this point, at least one of the clauses is undecided.
     # Choose a literal to try to assign to 1 or to 0...
     # And try those options out by branching recursively.
-    clauses = cleanup(clauses)
     xi: int|None = decide_literal(clauses, assignments)
     if not xi:
         # There are no undecided literals, so we can't make any more decisions.
@@ -504,13 +488,12 @@ def dpll_rec(clauses: list[Clause], assignments: dict[int,Any]|None=None) -> dic
     assert(assignments[xi] is None)
     # Try xi=1
     assignments[xi] = 1
-    if (result := dpll_rec(clauses, assignments)):
+    if (result := dpll_rec(original_clause, assignments)):
         # SAT
         return result
     # Try xi=0
-    clauses = cleanup(clauses)
     assignments[xi] = 0
-    if (result := dpll_rec(clauses, assignments)):
+    if (result := dpll_rec(original_clause, assignments)):
         # SAT
         return result
     # If both xi=1 and xi=0 failed, then this whole recursive branch is UNSAT.
