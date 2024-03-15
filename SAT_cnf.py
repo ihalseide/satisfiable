@@ -475,7 +475,8 @@ def dpll_rec(clauses: list[Clause], assignments: dict[int,Any]|None=None) -> dic
         elif value == UNDECIDED:
             # We only need to see that one clause is undecided to know if any are undecided.
             anyUndecidedClause = True
-            assignments = unit_propagate(clauses, assignments)
+            if clause.isUnit == True:
+                assignments = unit_propagate(clauses, assignments)
     if not anyUndecidedClause:
         # If no clauses are UNSAT and no clauses are undecided,
         # then all clauses are SAT and the whole function is SAT!
