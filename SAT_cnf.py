@@ -4,6 +4,7 @@ import random
 import argparse
 from sys import stderr, argv, exit
 from copy import deepcopy
+from time import sleep
 
 
 # Two defined values for literals (the polarity)
@@ -371,25 +372,25 @@ def unit_propagate(clauses: list[Clause], assignments: dict[int, int|None]) -> d
                         polarity = POS_LIT # Save the polarity of the literal to determine which complement to remove from the other clauses
                     elif clauses[i].data[lit] == NEG_LIT and assignments[lit] == None:
                         assignments[lit] = 0 # Only assigning the unassigned literal
-                        polarity ==  NEG_LIT # Save the polarity of the literal to determine which complement to remove from the other clauses
-                    # del clauses[i] # Remove the clause from the list now that it is SAT
-                    # i -= 1
+                        polarity =  NEG_LIT # Save the polarity of the literal to determine which complement to remove from the other clauses
+                    del clauses[i] # Remove the clause from the list now that it is SAT
+                    i -= 1
                     # Loop over list again to remove the complement of the literal from all clauses
-                    # for j in range(len(clauses)):
-                    #     # if the literal that just made the unit clause SAT is in this current clause and is ~xi
-                    #     if  (lit in clauses[j].data) and (polarity == NEG_LIT):
-                    #         for k, _ in clauses[j].data.items():
-                    #             # If literal is the complement of the literal that just made the unit clause SAT...
-                    #             if (k == lit) and (clauses[j].data[k] == POS_LIT):
-                    #                 del clauses[j].data[k] # Remove the complement literal
-                    #                 break # Removed complement. No need to iterate further in the clause
-                    #     # if the literal that just made the unit clause SAT is in this current clause and is xi
-                    #     elif (lit in clauses[j].data) and (polarity == POS_LIT):
-                    #         for k, _ in clauses[j].data.items():
-                    #             # If literal is the complement of the literal that just made the unit clause SAT...
-                    #             if (k == lit) and (clauses[j].data[k] == NEG_LIT):
-                    #                 del clauses[j].data[k] # Remove the complement literal
-                    #                 break # Removed complement. No need to iterate further in the clause
+                    for j in range(len(clauses)):
+                        # if the literal that just made the unit clause SAT is in this current clause and is ~xi
+                        if  (lit in clauses[j].data) and (polarity == NEG_LIT):
+                            for k, _ in clauses[j].data.items():
+                                # If literal is the complement of the literal that just made the unit clause SAT...
+                                if (k == lit) and (clauses[j].data[k] == POS_LIT):
+                                    del clauses[j].data[k] # Remove the complement literal
+                                    break # Removed complement. No need to iterate further in the clause
+                        # if the literal that just made the unit clause SAT is in this current clause and is xi
+                        elif (lit in clauses[j].data) and (polarity == POS_LIT):
+                            for k, _ in clauses[j].data.items():
+                                # If literal is the complement of the literal that just made the unit clause SAT...
+                                if (k == lit) and (clauses[j].data[k] == NEG_LIT):
+                                    del clauses[j].data[k] # Remove the complement literal
+                                    break # Removed complement. No need to iterate further in the clause
                     # Removed clause. No need to further iterate
                     break
         i += 1
@@ -452,7 +453,10 @@ def dpll_rec(clauses: list[Clause], assignments: dict[int,Any]|None=None) -> dic
 
     NOTE: DON'T remove this function because it is useful for validating the iterative version !!!
     '''
-    #original_clause = deepcopy(clauses)
+    # global for saving the original list of clauses derived
+    global original_clauses
+    # Make a copy of the clauses to use to evaluate the clauses
+    original_clauses = deepcopy(clauses)
     if not assignments:
         assignments = all_undecided(clauses)
     # Base cases:
@@ -461,11 +465,10 @@ def dpll_rec(clauses: list[Clause], assignments: dict[int,Any]|None=None) -> dic
     # - if there are no clauses, then the function is SAT.
     if not clauses:
         return assignments # SAT
-    
-    # Call unit_propagate() to SAT any undecided clauses
+    # Call unit_propagate() to SAT any unit clauses
     assignments = unit_propagate(clauses, assignments)
     anyUndecidedClause: bool = False
-    for clause in clauses:
+    for clause in original_clauses:
         value = clause_value(clause, assignments)
         if value == UNSAT:
             # If any clause is UNSAT, then the whole function is UNSAT.
@@ -489,19 +492,16 @@ def dpll_rec(clauses: list[Clause], assignments: dict[int,Any]|None=None) -> dic
     assert(assignments[xi] is None)
     # Try xi=1
     assignments[xi] = 1
-    assignments = unit_propagate(clauses, assignments)
     if (result := dpll_rec(clauses, assignments)):
         # SAT
         return result
     # Try xi=0
     assignments[xi] = 0
-    assignments = unit_propagate(clauses, assignments)
     if (result := dpll_rec(clauses, assignments)):
         # SAT
         return result
     # If both xi=1 and xi=0 failed, then this whole recursive branch is UNSAT.
     # So return UNSAT to the callee (probably the previous recursive call).
-    assignments = unit_propagate(clauses, assignments)
     assignments[xi] = None # undo the decision
     return {} # UNSAT
 
