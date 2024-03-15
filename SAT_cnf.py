@@ -356,7 +356,10 @@ def decide_literal(clauses: list[Clause], decisions: dict) -> int|None:
 def unit_propagate(clauses: list[Clause], assignments: dict[int, int|None]) -> dict[int, int|None]:
     '''
     Function for the unit propagation algorithm
-    Return the `assignments` of the clause after satisfying the unit clause
+    - Unit propogation works by assigning a unit literal to make the clause SAT
+        - We then remove the clause from the search and then remove the unit literal's complement from the clauses.
+    - Function takes `list[Clause]` and `assignments dict()`
+    - Return the `assignments` of the clause after satisfying the unit clause
     '''
     
     # Loop over entire list of clauses
