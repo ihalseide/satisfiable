@@ -466,7 +466,6 @@ def dpll_rec(clauses: list[Clause], assignments: dict[int,Any]|None=None) -> dic
     if not clauses:
         return assignments # SAT
     # Call unit_propagate() to SAT any unit clauses
-    assignments = unit_propagate(clauses, assignments)
     anyUndecidedClause: bool = False
     for clause in original_clauses:
         value = clause_value(clause, assignments)
@@ -476,6 +475,7 @@ def dpll_rec(clauses: list[Clause], assignments: dict[int,Any]|None=None) -> dic
         elif value == UNDECIDED:
             # We only need to see that one clause is undecided to know if any are undecided.
             anyUndecidedClause = True
+            assignments = unit_propagate(clauses, assignments)
     if not anyUndecidedClause:
         # If no clauses are UNSAT and no clauses are undecided,
         # then all clauses are SAT and the whole function is SAT!
@@ -1013,7 +1013,7 @@ def main():
             # Parse DIMACS and call DPLL algorithm to find SAT or UNSAT
             print('Parsing DIMACS file at:', args.dimacs)
             clauses = read_DIMACS_file(args.dimacs)
-            result = dpll_rec(clauses)
+            result = find_all_SAT(clauses)
         else:
             parser.print_help(stderr)
             exit(1)
