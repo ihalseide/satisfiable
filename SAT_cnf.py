@@ -514,6 +514,10 @@ def dpll_iterative(clauses: list[Clause]) -> dict[int,Any]:
     '''
     Implementation of DPLL using a loop instead of recursion.
     '''
+    # global for saving the original list of clauses derived
+    global original_clauses
+    # Make a copy of the clauses to use to evaluate the clauses
+    original_clauses = deepcopy(clauses)
     if not clauses:
         # Edge case where clauses is empty.
         # It's not possible to make any decisions/assignments, so return empty dictionary,
@@ -532,7 +536,7 @@ def dpll_iterative(clauses: list[Clause]) -> dict[int,Any]:
         current_assignments = stack.pop()
         anyUndecidedClause: bool = False
         anUNSATClause: Clause|None = None
-        for clause in clauses:
+        for clause in original_clauses:
             value = clause_value(clause, current_assignments)
             if value == UNSAT:
                 # If any clause is UNSAT, then the whole function is UNSAT.
@@ -541,6 +545,7 @@ def dpll_iterative(clauses: list[Clause]) -> dict[int,Any]:
             elif (not anyUndecidedClause) and (value == UNDECIDED):
                 # We only need to see that one clause is undecided to know if any are undecided.
                 anyUndecidedClause = True
+                current_assignments = unit_propagate(clauses, current_assignments)
 
         # This should be checked before anyUndecidedClause, because UNSAT takes precedence over UNDECIDED.
         if anUNSATClause is not None:
@@ -591,7 +596,7 @@ def find_all_SAT(clauses: list[Clause]) -> list[dict[int,None]]:
     '''
     solutions: list[dict[int,None]] = []
     # Use the DPLL algorithm to find all solutions
-    while (solution := dpll_rec(clauses)):
+    while (solution := dpll_iterative(clauses)):
         # Add the current solution to the list of solutions
         solutions.append(solution)
         # Add a new clause to the CNF that blocks the current solution
@@ -1011,7 +1016,7 @@ def main():
             # Parse DIMACS and call DPLL algorithm to find SAT or UNSAT
             print('Parsing DIMACS file at:', args.dimacs)
             clauses = read_DIMACS_file(args.dimacs)
-            result = dpll_rec(clauses)
+            result = dpll_iterative(clauses)
         # Find all solutions for the given clauses
         elif args.all_dimacs:
             # Parse DIMACS and call DPLL algorithm to find SAT or UNSAT
@@ -1031,7 +1036,7 @@ def main():
         if args.one_sop:
             # Parse SoP and call DPLL algorithm to find SAT or UNSAT
             cnf = read_sop_file(args.file)
-            result = dpll_rec(cnf)
+            result = dpll_iterative(cnf)
         # Find all SAT solutions from given file for one function
         elif args.all_sop:
             # Parse SoP and call DPLL algorithm to find SAT or UNSAT
