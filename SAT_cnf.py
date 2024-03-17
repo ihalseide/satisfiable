@@ -4,7 +4,6 @@ import random
 import argparse
 from sys import stderr, argv, exit
 from copy import deepcopy
-from time import sleep
 
 
 # Two defined values for literals (the polarity)
