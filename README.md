@@ -5,7 +5,7 @@ A simple SAT solver (boolean function satisfiability).
 # Running
 
 ```
-python3 SAT_snf.py ...args...
+python3 SAT_cnf.py ...args...
 ```
 
 Arguments:
